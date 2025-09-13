@@ -5,8 +5,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "watch": "vite build --watch",
-        "claude": "npx @anthropic-ai/claude-code"
+        "watch": "vite build --watch"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.16.0",
