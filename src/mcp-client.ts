@@ -266,5 +266,13 @@ const options = program.opts();
         }
     } catch (error) {
         console.error("Error:", error);
+        process.exitCode = 1;
+    } finally {
+        // Ensure proper cleanup and avoid pipe issues
+        if (!options.keepAlive) {
+            // Small delay to allow any pending I/O operations to complete
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit(process.exitCode || 0);
+        }
     }
 })();
