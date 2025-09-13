@@ -5,7 +5,9 @@ import express from "express";
 import { Command } from "commander";
 
 const program = new Command();
-program.description("MCP Test Server").option("-p, --port <port>", "port to run the server on (if omitted, uses stdio)");
+program
+    .description("MCP Test Server")
+    .option("-p, --port <port>", "port to run the server on (if omitted, uses stdio)");
 
 program.parse();
 const options = program.opts();
@@ -26,30 +28,8 @@ const server = new McpServer(
 server.tool("test", "Test local MCP server", {}, async (args, extra) => {
     log("Got a connection!");
     log("Arguments:");
-    const { sendNotification } = extra;
     log(args, extra);
-    const progressToken = extra._meta?.progressToken;
-    for (let progress = 0; progress <= 100; progress += 10) {
-        log(`Progress: ${progress}%`);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        if (progressToken) {
-            await sendNotification({
-                method: "notifications/progress",
-                params: {
-                    progressToken,
-                    progress,
-                    message: `Custom progress message - got ${progress}% now`,
-                    total: 100,
-                },
-            });
-        }
-        await sendNotification({
-            method: "notifications/message",
-            params: { level: "info", data: `Progress is ${progress}%, by the way` },
-        });
-    }
-    log("Finalized");
-    return { content: [{ type: "text", text: "Finally it finished!" }] };
+    return { content: [{ type: "text", text: "It works!" }] };
 });
 
 if (options.port) {
