@@ -12,6 +12,10 @@ import { program } from "commander";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function isMethodNotFound(error: unknown): boolean {
+    return error instanceof McpError && error.code === -32601;
+}
+
 interface ServerConfig {
     name: string;
     type: "stdio" | "http";
@@ -64,37 +68,32 @@ export class McpClientManager {
             version: "1.0.0",
         });
 
-        try {
-            let transport;
+        let transport;
 
-            if (serverConfig.type === "stdio") {
-                if (!serverConfig.command) {
-                    throw new Error(`Stdio server ${serverName} missing command`);
-                }
-
-                transport = new StdioClientTransport({
-                    command: serverConfig.command,
-                    args: serverConfig.args || [],
-                });
-            } else if (serverConfig.type === "http") {
-                if (!serverConfig.url) {
-                    throw new Error(`HTTP server ${serverName} missing URL`);
-                }
-
-                transport = new StreamableHTTPClientTransport(new URL(serverConfig.url));
-            } else {
-                throw new Error(`Unsupported server type: ${serverConfig.type}`);
+        if (serverConfig.type === "stdio") {
+            if (!serverConfig.command) {
+                throw new Error(`Stdio server ${serverName} missing command`);
             }
 
-            await client.connect(transport);
-            this.clients.set(serverName, client);
+            transport = new StdioClientTransport({
+                command: serverConfig.command,
+                args: serverConfig.args || [],
+            });
+        } else if (serverConfig.type === "http") {
+            if (!serverConfig.url) {
+                throw new Error(`HTTP server ${serverName} missing URL`);
+            }
 
-            console.log(`Connected to MCP server: ${serverName}`);
-            return client;
-        } catch (error) {
-            console.error(`Failed to connect to ${serverName}:`, error);
-            throw error;
+            transport = new StreamableHTTPClientTransport(new URL(serverConfig.url));
+        } else {
+            throw new Error(`Unsupported server type: ${serverConfig.type}`);
         }
+
+        await client.connect(transport);
+        this.clients.set(serverName, client);
+
+        console.log(`Connected to MCP server: ${serverName}`);
+        return client;
     }
 
     async disconnectFromServer(serverName: string): Promise<void> {
@@ -184,9 +183,14 @@ const options = program.opts();
             try {
                 console.log(`\n🔗 Connecting to ${serverName}...`);
                 await clientManager.connectToServer(serverName);
+            } catch (error: unknown) {
+                console.error(`❌ Failed to connect to ${serverName}:`, error);
+                continue;
+            }
 
-                // List tools for this server
-                console.log(`📋 Listing tools for ${serverName}:`);
+            // List tools for this server
+            console.log(`📋 Listing tools for ${serverName}:`);
+            try {
                 const tools = await clientManager.listTools(serverName);
                 if (tools.tools && tools.tools.length > 0) {
                     tools.tools.forEach((tool) => {
@@ -195,9 +199,17 @@ const options = program.opts();
                 } else {
                     console.log("  No tools available");
                 }
+            } catch (error: unknown) {
+                if (isMethodNotFound(error)) {
+                    console.log("  🚫 Method not supported by this server");
+                } else {
+                    console.error("  ❌ Error listing tools:", error instanceof Error ? error.message : error);
+                }
+            }
 
-                // List resources for this server
-                console.log(`📄 Listing resources for ${serverName}:`);
+            // List resources for this server
+            console.log(`📄 Listing resources for ${serverName}:`);
+            try {
                 const resources = await clientManager.listResources(serverName);
                 if (resources.resources && resources.resources.length > 0) {
                     resources.resources.forEach((resource) => {
@@ -206,9 +218,17 @@ const options = program.opts();
                 } else {
                     console.log("  No resources available");
                 }
+            } catch (error: unknown) {
+                if (isMethodNotFound(error)) {
+                    console.log("  🚫 Method not supported by this server");
+                } else {
+                    console.error("  ❌ Error listing resources:", error instanceof Error ? error.message : error);
+                }
+            }
 
-                // List prompts for this server
-                console.log(`💭 Listing prompts for ${serverName}:`);
+            // List prompts for this server
+            console.log(`💭 Listing prompts for ${serverName}:`);
+            try {
                 const prompts = await clientManager.listPrompts(serverName);
                 if (prompts.prompts && prompts.prompts.length > 0) {
                     prompts.prompts.forEach((prompt) => {
@@ -218,11 +238,11 @@ const options = program.opts();
                     console.log("  No prompts available");
                 }
             } catch (error: unknown) {
-                console.error(
-                    `❌ Failed to perform an action on ${serverName}:`,
-                    error,
-                    error instanceof McpError && error.code === -32601 && "(method not found)",
-                );
+                if (isMethodNotFound(error)) {
+                    console.log("  🚫 Method not supported by this server");
+                } else {
+                    console.error("  ❌ Error listing prompts:", error instanceof Error ? error.message : error);
+                }
             }
         }
 
