@@ -1,0 +1,24 @@
+{
+    "servers": [
+        {
+            "name": "browser-mcp",
+            "type": "stdio",
+            "command": "npx",
+            "args": ["-y", "@browsermcp/mcp@latest"],
+            "enabled": true
+        },
+        {
+            "name": "mcp-test-stdio",
+            "type": "stdio",
+            "command": "node",
+            "args": ["/Users/chameleon/WebstormProjects/mcp-test/dist/index.cjs"],
+            "enabled": true
+        },
+        {
+            "name": "mcp-test-http",
+            "type": "http",
+            "url": "http://localhost:3002/mcp",
+            "enabled": true
+        }
+    ]
+}
