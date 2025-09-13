@@ -4,8 +4,8 @@ import { resolve } from "path";
 export default defineConfig({
     build: {
         lib: {
-            entry: resolve(__dirname, "src/index.ts"),
-            fileName: "index",
+            entry: resolve(__dirname, "src/mcp-server.ts"),
+            fileName: "mcp-server",
             formats: ["cjs"],
         },
         rollupOptions: {

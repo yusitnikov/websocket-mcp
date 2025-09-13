@@ -11,7 +11,7 @@
             "name": "mcp-test-stdio",
             "type": "stdio",
             "command": "node",
-            "args": ["/Users/chameleon/WebstormProjects/mcp-test/dist/index.cjs"],
+            "args": ["/Users/chameleon/WebstormProjects/mcp-test/dist/mcp-server.cjs"],
             "enabled": true
         },
         {

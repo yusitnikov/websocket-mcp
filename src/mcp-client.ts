@@ -7,7 +7,6 @@ import { isMethodNotFoundError } from "./isMethodNotFoundError.ts";
 
 // CLI setup
 program
-    .name("mcp-client")
     .description("MCP Client for connecting to multiple MCP servers")
     .option("--keep-alive", "Keep connections alive after listing capabilities")
     .parse();
