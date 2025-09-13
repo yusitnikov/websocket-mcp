@@ -39,6 +39,9 @@ if (options.port) {
     const app = express();
     app.use(express.json());
 
+    // Track active WebSocket connections
+    const activeConnections = new Set();
+
     app.post("/mcp", async (req, res) => {
         log("HTTP request!");
         log(req.body);
@@ -78,6 +81,13 @@ if (options.port) {
 
     wss.on("connection", (ws) => {
         log("New WebSocket connection established");
+        activeConnections.add(ws);
+        log("Active connections:", activeConnections.size);
+
+        ws.send(
+            `Hi there! You're ${activeConnections.size}th in the queue. Your opinion is important to us.`,
+            (error) => log(error ?? "Sent a message"),
+        );
 
         ws.on("message", (data) => {
             log("WebSocket received message:", data.toString());
@@ -85,6 +95,8 @@ if (options.port) {
 
         ws.on("close", (code, reason) => {
             log("WebSocket connection closed:", { code, reason: reason.toString() });
+            activeConnections.delete(ws);
+            log("Active connections:", activeConnections.size);
             ws.close();
         });
 
