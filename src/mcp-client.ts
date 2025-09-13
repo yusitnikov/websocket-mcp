@@ -182,7 +182,12 @@ const options = program.opts();
         for (const serverName of enabledServers) {
             try {
                 console.log(`\n🔗 Connecting to ${serverName}...`);
-                await clientManager.connectToServer(serverName);
+                const client = await clientManager.connectToServer(serverName);
+
+                // Get server capabilities
+                console.log(`⚙️  Server capabilities for ${serverName}:`);
+                const capabilities = client.getServerCapabilities();
+                console.log("  ", capabilities);
             } catch (error: unknown) {
                 console.error(`❌ Failed to connect to ${serverName}:`, error);
                 continue;
@@ -271,7 +276,7 @@ const options = program.opts();
         // Ensure proper cleanup and avoid pipe issues
         if (!options.keepAlive) {
             // Small delay to allow any pending I/O operations to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
             process.exit(process.exitCode || 0);
         }
     }
