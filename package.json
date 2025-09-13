@@ -1,0 +1,23 @@
+{
+    "name": "mcp-test",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "watch": "vite build --watch",
+        "claude": "npx @anthropic-ai/claude-code"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.16.0",
+        "zod": "^3.25.76"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "chrome-types": "^0.1.375",
+        "nodemon": "^3.1.10",
+        "prettier": "^3.6.2",
+        "typescript": "~5.8.3",
+        "vite": "^7.0.4"
+    }
+}
