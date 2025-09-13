@@ -1,9 +1,13 @@
+// noinspection ExceptionCaughtLocallyJS
+
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { McpError } from "@modelcontextprotocol/sdk/types.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { program } from "commander";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -158,21 +162,88 @@ export class McpClientManager {
     }
 }
 
+// CLI setup
+program
+    .name("mcp-client")
+    .description("MCP Client for connecting to multiple MCP servers")
+    .option("--keep-alive", "Keep connections alive after listing capabilities")
+    .parse();
+
+const options = program.opts();
+
 // Example usage
 (async () => {
     const clientManager = new McpClientManager();
 
     try {
-        // List all enabled servers
-        console.log("Enabled servers:", clientManager.getEnabledServerNames());
+        const enabledServers = clientManager.getEnabledServerNames();
+        console.log("Enabled servers:", enabledServers);
 
-        // Example: connect to a server and list its capabilities
-        // const serverName = 'example-stdio-server';
-        // const tools = await clientManager.listTools(serverName);
-        // console.log(`Tools from ${serverName}:`, tools);
+        // Connect to all enabled servers and list their tools
+        for (const serverName of enabledServers) {
+            try {
+                console.log(`\n🔗 Connecting to ${serverName}...`);
+                await clientManager.connectToServer(serverName);
 
-        // Clean up connections
-        await clientManager.disconnectAll();
+                // List tools for this server
+                console.log(`📋 Listing tools for ${serverName}:`);
+                const tools = await clientManager.listTools(serverName);
+                if (tools.tools && tools.tools.length > 0) {
+                    tools.tools.forEach((tool) => {
+                        console.log(`  • ${tool.name}: ${tool.description}`);
+                    });
+                } else {
+                    console.log("  No tools available");
+                }
+
+                // List resources for this server
+                console.log(`📄 Listing resources for ${serverName}:`);
+                const resources = await clientManager.listResources(serverName);
+                if (resources.resources && resources.resources.length > 0) {
+                    resources.resources.forEach((resource) => {
+                        console.log(`  • ${resource.name}: ${resource.description}`);
+                    });
+                } else {
+                    console.log("  No resources available");
+                }
+
+                // List prompts for this server
+                console.log(`💭 Listing prompts for ${serverName}:`);
+                const prompts = await clientManager.listPrompts(serverName);
+                if (prompts.prompts && prompts.prompts.length > 0) {
+                    prompts.prompts.forEach((prompt) => {
+                        console.log(`  • ${prompt.name}: ${prompt.description}`);
+                    });
+                } else {
+                    console.log("  No prompts available");
+                }
+            } catch (error: unknown) {
+                console.error(
+                    `❌ Failed to perform an action on ${serverName}:`,
+                    error,
+                    error instanceof McpError && error.code === -32601 && "(method not found)",
+                );
+            }
+        }
+
+        console.log("\n✅ All server connections attempted.");
+
+        if (options.keepAlive) {
+            console.log("🔄 Keeping connections alive. Press Ctrl+C to exit.");
+
+            process.on("SIGINT", async () => {
+                console.log("\n🔄 Shutting down and disconnecting from all servers...");
+                await clientManager.disconnectAll();
+                process.exit(0);
+            });
+
+            // Keep alive
+            setInterval(() => {}, 1000);
+        } else {
+            console.log("🔄 Disconnecting from all servers...");
+            await clientManager.disconnectAll();
+            console.log("✅ Done.");
+        }
     } catch (error) {
         console.error("Error:", error);
     }
