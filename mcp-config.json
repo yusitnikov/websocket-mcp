@@ -18,7 +18,7 @@
             "name": "mcp-test-http",
             "type": "http",
             "url": "http://localhost:3002/mcp",
-            "enabled": true
+            "enabled": false
         }
     ]
 }
