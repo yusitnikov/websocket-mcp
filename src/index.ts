@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import express from "express";
 
 const log = (...args: any[]) => {
     console.error(`[${new Date().toISOString()}]`, ...args);
@@ -43,12 +44,38 @@ server.tool("test", "Test local MCP server", {}, async (args, extra) => {
     return { content: [{ type: "text", text: "Finally it finished!" }] };
 });
 
-(async () => {
+const app = express();
+app.use(express.json());
+
+app.post("/mcp", async (req: any, res: any) => {
     try {
-        await server.connect(new StdioServerTransport());
-        log("Running!");
+        const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined, // stateless mode
+        });
+
+        res.on("close", () => {
+            transport.close();
+        });
+
+        await server.connect(transport);
+        await transport.handleRequest(req, res, req.body);
     } catch (error) {
-        log("Fatal error:", error);
-        process.exit(1);
+        log("Error handling MCP request:", error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                jsonrpc: "2.0",
+                error: {
+                    code: -32603,
+                    message: "Internal server error",
+                },
+                id: null,
+            });
+        }
     }
-})();
+});
+
+const PORT = 3002;
+app.listen(PORT, () => {
+    log(`MCP HTTP Server running on port ${PORT}`);
+    log(`Connect to: http://localhost:${PORT}/mcp`);
+});
