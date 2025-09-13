@@ -180,18 +180,22 @@ const options = program.opts();
 
         // Connect to all enabled servers and list their tools
         for (const serverName of enabledServers) {
+            let capabilities: any = null;
             try {
                 console.log(`\n🔗 Connecting to ${serverName}...`);
                 const client = await clientManager.connectToServer(serverName);
 
                 // Get server capabilities
                 console.log(`⚙️  Server capabilities for ${serverName}:`);
-                const capabilities = client.getServerCapabilities();
+                capabilities = client.getServerCapabilities();
                 console.log("  ", capabilities);
             } catch (error: unknown) {
                 console.error(`❌ Failed to connect to ${serverName}:`, error);
                 continue;
             }
+
+            // Helper function to check if capability is declared
+            const hasCapability = (capabilityName: string) => capabilities && capabilities[capabilityName];
 
             // List tools for this server
             console.log(`📋 Listing tools for ${serverName}:`);
@@ -204,9 +208,18 @@ const options = program.opts();
                 } else {
                     console.log("  No tools available");
                 }
+
+                // Check for capability mismatch (method works but capability not declared)
+                if (!hasCapability("tools")) {
+                    console.log("  ⚠️ Method works despite server not declaring tools capability");
+                }
             } catch (error: unknown) {
                 if (isMethodNotFound(error)) {
-                    console.log("  🚫 Method not supported by this server");
+                    if (hasCapability("tools")) {
+                        console.log("  ⚠️ Method not supported despite server declaring tools capability");
+                    } else {
+                        console.log("  🚫 Method not supported by this server");
+                    }
                 } else {
                     console.error("  ❌ Error listing tools:", error instanceof Error ? error.message : error);
                 }
@@ -223,9 +236,18 @@ const options = program.opts();
                 } else {
                     console.log("  No resources available");
                 }
+
+                // Check for capability mismatch (method works but capability not declared)
+                if (!hasCapability("resources")) {
+                    console.log("  ⚠️ Method works despite server not declaring resources capability");
+                }
             } catch (error: unknown) {
                 if (isMethodNotFound(error)) {
-                    console.log("  🚫 Method not supported by this server");
+                    if (hasCapability("resources")) {
+                        console.log("  ⚠️ Method not supported despite server declaring resources capability");
+                    } else {
+                        console.log("  🚫 Method not supported by this server");
+                    }
                 } else {
                     console.error("  ❌ Error listing resources:", error instanceof Error ? error.message : error);
                 }
@@ -242,9 +264,18 @@ const options = program.opts();
                 } else {
                     console.log("  No prompts available");
                 }
+
+                // Check for capability mismatch (method works but capability not declared)
+                if (!hasCapability("prompts")) {
+                    console.log("  ⚠️ Method works despite server not declaring prompts capability");
+                }
             } catch (error: unknown) {
                 if (isMethodNotFound(error)) {
-                    console.log("  🚫 Method not supported by this server");
+                    if (hasCapability("prompts")) {
+                        console.log("  ⚠️ Method not supported despite server declaring prompts capability");
+                    } else {
+                        console.log("  🚫 Method not supported by this server");
+                    }
                 } else {
                     console.error("  ❌ Error listing prompts:", error instanceof Error ? error.message : error);
                 }
