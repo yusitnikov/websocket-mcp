@@ -3,6 +3,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import express from "express";
 import { Command } from "commander";
+import { WebSocketServer } from "ws";
+import http from "http";
 
 const program = new Command();
 program
@@ -33,7 +35,7 @@ server.tool("test", "Test local MCP server", {}, async (args, extra) => {
 });
 
 if (options.port) {
-    // HTTP mode
+    // HTTP mode with WebSocket support
     const app = express();
     app.use(express.json());
 
@@ -67,9 +69,38 @@ if (options.port) {
     });
 
     const PORT = parseInt(options.port, 10);
-    app.listen(PORT, () => {
+
+    // Create HTTP server
+    const httpServer = http.createServer(app);
+
+    // Create WebSocket server
+    const wss = new WebSocketServer({ server: httpServer });
+
+    wss.on("connection", (ws) => {
+        log("New WebSocket connection established");
+
+        ws.on("message", (data) => {
+            log("WebSocket received message:", data.toString());
+        });
+
+        ws.on("close", (code, reason) => {
+            log("WebSocket connection closed:", { code, reason: reason.toString() });
+            ws.close();
+        });
+
+        ws.on("error", (error) => {
+            log("WebSocket error:", error);
+        });
+
+        ws.on("pong", (data) => {
+            log("WebSocket pong received:", data.toString());
+        });
+    });
+
+    httpServer.listen(PORT, () => {
         log(`MCP HTTP Server running on port ${PORT}`);
-        log(`Connect to: http://localhost:${PORT}/mcp`);
+        log(`HTTP endpoint: http://localhost:${PORT}/mcp`);
+        log(`WebSocket endpoint: ws://localhost:${PORT}`);
     });
 } else {
     // Stdio mode
