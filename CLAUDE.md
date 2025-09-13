@@ -46,3 +46,22 @@ This is a dual-purpose project containing:
 - `commander` - CLI argument parsing
 - `zod` - Schema validation
 - `typescript`, `vite` - Build tooling
+
+## Important: What NOT to Do
+
+- **DO NOT** use JetBrains MCP tools for reading files - use the Read tool instead
+- **DO NOT** run build commands or launch the MCP server - it's handled by the IDE
+- **DO NOT** suggest compilation steps - development works directly from TypeScript source
+
+## Using Context7 MCP for Library Documentation
+
+Context7 MCP is already configured and available. To use it for up-to-date library documentation:
+
+1. **Resolve library ID first**: Use `mcp__context7__resolve-library-id` with the library name
+2. **Get documentation**: Use `mcp__context7__get-library-docs` with the resolved library ID
+3. **Direct library reference**: Users can specify library IDs directly using `/org/project` format
+
+Example workflow:
+- For "React Router": resolve to `/remix-run/react-router`
+- Then fetch docs with that exact ID
+- Always include `topic` parameter to focus on relevant documentation
