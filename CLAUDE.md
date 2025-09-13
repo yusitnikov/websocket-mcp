@@ -11,19 +11,34 @@ This is a dual-purpose project containing:
 
 ## Development Notes
 
-- MCP server is launched directly from the IDE without compilation
-- Build commands exist but are not used in development workflow
+- **IMPORTANT**: MCP server is launched directly from the IDE using TypeScript files (`.ts`)
+- **DO NOT** use build commands (`npm run build`, `npm run watch`) - they are not part of the development workflow
+- **DO NOT** access or run files from `dist/` directory
+- Launch `src/mcp-server.ts` directly in the IDE for development
 
 ## Architecture
 
-### MCP Server (`src/index.ts`)
+### MCP Server (`src/mcp-server.ts`)
 
-- Entry point: `src/index.ts`
+**Core Architecture:**
+- Entry point: `src/mcp-server.ts` (run directly from IDE)
+- **MCP Proxy Server** - Acts as a proxy/bridge between MCP clients (like Claude) and multiple MCP servers
 - Uses `@modelcontextprotocol/sdk` for MCP server implementation
-- Single tool implementation: "test" tool that returns "It works!"
-- Supports both stdio and HTTP transports (use `--port` flag for HTTP mode)
-- Outputs built as CommonJS module to `dist/` directory
-- Includes Express.js server for HTTP transport mode
+- Exposes HTTP transport for MCP clients at `/mcp` endpoint on configurable port (default: 3002)
+- Currently proxies tool requests/responses between MCP clients and external MCP servers
+- **Future Goal**: Allow browser tabs to define MCP servers via WebSocket connections
+
+**Current State:**
+- `McpClientsManager` - Manages connections to external MCP servers based on `mcp-config.json`
+- Server configuration supports both stdio and HTTP server types for external MCP servers
+- Express.js server handles MCP HTTP requests at `/mcp` endpoint
+- WebSocket server implemented but currently only for testing browser connections
+- Only tools are proxied (resources, prompts planned for future)
+
+**Future Architecture:**
+- WebSocket connections will allow browser tabs to register as MCP servers
+- Custom WebSocket MCP transport protocol for browser communication
+- Browser-defined MCP servers will be treated as external servers by the proxy
 
 ### Chrome Extension (`extension/`)
 
@@ -32,12 +47,12 @@ This is a dual-purpose project containing:
 - Icons stored in `extension/images/`
 - Permissions: storage, sockets
 
-## Build Configuration
+## Configuration Files
 
-- **TypeScript**: Strict mode with ES2022 target
-- **Vite**: Configured for Node.js library build (CommonJS output)
-- **External dependencies**: MCP SDK and Node.js built-ins are externalized
-- **Target**: Node.js 22
+- `mcp-config.json` - Required configuration file for MCP server connections (referenced by `McpClientsManager`)
+- `vite.config.ts` - Build configuration (not used in development, only for production builds)
+- `package.json` - Project dependencies and scripts (build commands exist but should not be used)
+- TypeScript configured with ES2022 target, Node.js 22 runtime
 
 ## Key Dependencies
 
@@ -49,5 +64,7 @@ This is a dual-purpose project containing:
 
 ## Important: What NOT to Do
 
-- **DO NOT** run build commands or launch the MCP server - it's handled by the IDE
+- **DO NOT** run build commands (`npm run build`, `npm run watch`) - development uses TypeScript directly
 - **DO NOT** suggest compilation steps - development works directly from TypeScript source
+- **DO NOT** access or reference files in `dist/` directory - they are not used in development
+- **DO NOT** launch the MCP server via command line - it's handled by the IDE
