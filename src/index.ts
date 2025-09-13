@@ -37,7 +37,9 @@ if (options.port) {
     const app = express();
     app.use(express.json());
 
-    app.post("/mcp", async (req: any, res: any) => {
+    app.post("/mcp", async (req, res) => {
+        log("HTTP request!");
+        log(req.body);
         try {
             const transport = new StreamableHTTPServerTransport({
                 sessionIdGenerator: undefined, // stateless mode
