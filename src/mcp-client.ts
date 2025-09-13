@@ -123,42 +123,6 @@ export class McpClientManager {
     getEnabledServerNames(): string[] {
         return this.config.servers.filter((server) => server.enabled).map((server) => server.name);
     }
-
-    async listTools(serverName: string) {
-        const client = await this.connectToServer(serverName);
-        return await client.listTools();
-    }
-
-    async listResources(serverName: string) {
-        const client = await this.connectToServer(serverName);
-        return await client.listResources();
-    }
-
-    async listPrompts(serverName: string) {
-        const client = await this.connectToServer(serverName);
-        return await client.listPrompts();
-    }
-
-    async callTool(serverName: string, name: string, arguments_: any) {
-        const client = await this.connectToServer(serverName);
-        return await client.callTool({
-            name,
-            arguments: arguments_,
-        });
-    }
-
-    async readResource(serverName: string, uri: string) {
-        const client = await this.connectToServer(serverName);
-        return await client.readResource({ uri });
-    }
-
-    async getPrompt(serverName: string, name: string, arguments_?: any) {
-        const client = await this.connectToServer(serverName);
-        return await client.getPrompt({
-            name,
-            arguments: arguments_,
-        });
-    }
 }
 
 // CLI setup
@@ -180,19 +144,19 @@ const options = program.opts();
 
         // Connect to all enabled servers and list their tools
         for (const serverName of enabledServers) {
-            let capabilities: any = null;
+            let client: Client;
             try {
                 console.log(`\n🔗 Connecting to ${serverName}...`);
-                const client = await clientManager.connectToServer(serverName);
-
-                // Get server capabilities
-                console.log(`⚙️  Server capabilities for ${serverName}:`);
-                capabilities = client.getServerCapabilities();
-                console.log("  ", capabilities);
+                client = await clientManager.connectToServer(serverName);
             } catch (error: unknown) {
                 console.error(`❌ Failed to connect to ${serverName}:`, error);
                 continue;
             }
+
+            // Get server capabilities
+            console.log(`⚙️  Server capabilities for ${serverName}:`);
+            const capabilities = client.getServerCapabilities();
+            console.log("  ", capabilities);
 
             // Helper function to check if capability is declared
             const hasCapability = (capabilityName: string) => capabilities && capabilities[capabilityName];
@@ -200,7 +164,7 @@ const options = program.opts();
             // List tools for this server
             console.log(`📋 Listing tools for ${serverName}:`);
             try {
-                const tools = await clientManager.listTools(serverName);
+                const tools = await client.listTools();
                 if (tools.tools && tools.tools.length > 0) {
                     tools.tools.forEach((tool) => {
                         console.log(`  • ${tool.name}: ${tool.description}`);
@@ -228,7 +192,7 @@ const options = program.opts();
             // List resources for this server
             console.log(`📄 Listing resources for ${serverName}:`);
             try {
-                const resources = await clientManager.listResources(serverName);
+                const resources = await client.listResources();
                 if (resources.resources && resources.resources.length > 0) {
                     resources.resources.forEach((resource) => {
                         console.log(`  • ${resource.name}: ${resource.description}`);
@@ -256,7 +220,7 @@ const options = program.opts();
             // List prompts for this server
             console.log(`💭 Listing prompts for ${serverName}:`);
             try {
-                const prompts = await clientManager.listPrompts(serverName);
+                const prompts = await client.listPrompts();
                 if (prompts.prompts && prompts.prompts.length > 0) {
                     prompts.prompts.forEach((prompt) => {
                         console.log(`  • ${prompt.name}: ${prompt.description}`);
