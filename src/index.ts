@@ -1,6 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
+import { Command } from "commander";
+
+const program = new Command();
+program.description("MCP Test Server").option("-p, --port <port>", "port to run the server on", "3002");
+
+program.parse();
+const options = program.opts();
 
 const log = (...args: any[]) => {
     console.error(`[${new Date().toISOString()}]`, ...args);
@@ -74,7 +81,7 @@ app.post("/mcp", async (req: any, res: any) => {
     }
 });
 
-const PORT = 3002;
+const PORT = parseInt(options.port, 10);
 app.listen(PORT, () => {
     log(`MCP HTTP Server running on port ${PORT}`);
     log(`Connect to: http://localhost:${PORT}/mcp`);
