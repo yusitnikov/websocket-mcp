@@ -15,6 +15,7 @@ This is a dual-purpose project containing:
 - **DO NOT** use build commands (`npm run build`, `npm run watch`) - they are not part of the development workflow
 - **DO NOT** access or run files from `dist/` directory
 - Launch `src/mcp-server.ts` directly in the IDE for development
+- **IMPORTANT**: always use the log function from utils.ts for any kind of logging, never use console.log and such.
 
 ## Architecture
 
