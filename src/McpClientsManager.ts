@@ -60,23 +60,26 @@ export class McpClientsManager {
 
         let transport;
 
-        if (serverConfig.type === "stdio") {
-            if (!serverConfig.command) {
-                throw new Error(`Stdio server ${serverName} missing command`);
-            }
+        switch (serverConfig.type) {
+            case "stdio":
+                if (!serverConfig.command) {
+                    throw new Error(`Stdio server ${serverName} missing command`);
+                }
 
-            transport = new StdioClientTransport({
-                command: serverConfig.command,
-                args: serverConfig.args || [],
-            });
-        } else if (serverConfig.type === "http") {
-            if (!serverConfig.url) {
-                throw new Error(`HTTP server ${serverName} missing URL`);
-            }
+                transport = new StdioClientTransport({
+                    command: serverConfig.command,
+                    args: serverConfig.args || [],
+                });
+                break;
+            case "http":
+                if (!serverConfig.url) {
+                    throw new Error(`HTTP server ${serverName} missing URL`);
+                }
 
-            transport = new StreamableHTTPClientTransport(new URL(serverConfig.url));
-        } else {
-            throw new Error(`Unsupported server type: ${serverConfig.type}`);
+                transport = new StreamableHTTPClientTransport(new URL(serverConfig.url));
+                break;
+            default:
+                throw new Error(`Unsupported server type: ${serverConfig.type}`);
         }
 
         await client.connect(transport);
