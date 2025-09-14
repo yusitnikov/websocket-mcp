@@ -21,14 +21,16 @@ This is a dual-purpose project containing:
 ### MCP Server (`src/mcp-server.ts`)
 
 **Core Architecture:**
+
 - Entry point: `src/mcp-server.ts` (run directly from IDE)
 - **MCP Proxy Server** - Acts as a proxy/bridge between MCP clients (like Claude) and multiple MCP servers
 - Uses `@modelcontextprotocol/sdk` for MCP server implementation
-- Exposes HTTP transport for MCP clients at `/mcp` endpoint on configurable port (default: 3002)
+- Exposes HTTP transport for MCP clients at `/mcp` endpoint on configurable port (default: 3003)
 - Currently proxies tool requests/responses between MCP clients and external MCP servers
 - **Future Goal**: Allow browser tabs to define MCP servers via WebSocket connections
 
 **Current State:**
+
 - `McpClientsManager` - Manages connections to external MCP servers based on `mcp-config.json`
 - Server configuration supports both stdio and HTTP server types for external MCP servers
 - Express.js server handles MCP HTTP requests at `/mcp` endpoint
@@ -36,6 +38,7 @@ This is a dual-purpose project containing:
 - Only tools are proxied (resources, prompts planned for future)
 
 **Future Architecture:**
+
 - WebSocket connections will allow browser tabs to register as MCP servers
 - Custom WebSocket MCP transport protocol for browser communication
 - Browser-defined MCP servers will be treated as external servers by the proxy

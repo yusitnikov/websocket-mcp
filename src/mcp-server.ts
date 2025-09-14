@@ -9,7 +9,7 @@ import { McpClientsManager } from "./McpClientsManager";
 import { log } from "./utils.ts";
 
 const program = new Command();
-program.description("MCP Proxy Server").option("-p, --port <port>", "port to run the server on", "3002");
+program.description("MCP Proxy Server").option("-p, --port <port>", "port to run the server on", "3003");
 
 program.parse();
 const { port } = program.opts();
