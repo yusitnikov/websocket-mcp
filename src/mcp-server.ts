@@ -134,11 +134,13 @@ async function initializeTools(clientsManager: McpClientsManager) {
             });
 
             res.on("close", () => {
+                log("HTTP request closed");
                 transport.close();
             });
 
             await server.connect(transport);
             await transport.handleRequest(req, res, req.body);
+            log("Finished handling request");
         } catch (error) {
             log("Error handling MCP request:", error);
             if (!res.headersSent) {
