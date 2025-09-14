@@ -40,7 +40,9 @@ header p {
 /* Main content */
 main {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    gap: 2rem;
+    align-items: center;
 }
 
 .demo-section {

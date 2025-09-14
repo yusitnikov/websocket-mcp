@@ -34,6 +34,9 @@ export class WebSocketServerTransport implements Transport {
 
                     if (this.onmessage) {
                         this.onmessage(message, extra);
+                        log("Proxied the message to the handler");
+                    } else {
+                        log("this.onmessage is not defined yet...");
                     }
                 } catch (error) {
                     this.handleError(
@@ -80,6 +83,8 @@ export class WebSocketServerTransport implements Transport {
      * Sends a JSON-RPC message to the connected browser
      */
     async send(message: JSONRPCMessage, options?: TransportSendOptions): Promise<void> {
+        log("Proxying a message from client to browser", message);
+
         // Validate connection count on-demand
         if (this.connections.size === 0) {
             throw new Error("No browser tabs connected");
@@ -89,9 +94,9 @@ export class WebSocketServerTransport implements Transport {
             throw new Error(`Expected 1 browser connection, got ${this.connections.size}`);
         }
 
-        const connection = this.connections.values().next().value;
+        const connection = this.connections.values().next().value!;
 
-        if (!connection || connection.readyState !== WebSocket.OPEN) {
+        if (connection.readyState !== WebSocket.OPEN) {
             throw new Error("WebSocket connection is not open");
         }
 
@@ -102,7 +107,7 @@ export class WebSocketServerTransport implements Transport {
                 ...(options?.relatedRequestId && { relatedRequestId: options.relatedRequestId }),
             };
 
-            connection!.send(JSON.stringify(messageToSend));
+            connection.send(JSON.stringify(messageToSend));
         } catch (error) {
             throw new Error(`Failed to send message: ${error instanceof Error ? error.message : String(error)}`);
         }
