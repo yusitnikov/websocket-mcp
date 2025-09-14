@@ -7,8 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a multi-component project containing:
 
 1. **MCP Server** - A Model Context Protocol server implementation using the MCP SDK
-2. **Chrome Extension** - A browser extension with basic popup and service worker functionality
-3. **Demo Web Application** - A Vite-based web app demonstrating browser-to-MCP server connectivity via WebSocket
+2. **Demo Web Application** - A Vite-based web app demonstrating browser-to-MCP server connectivity via WebSocket
 
 ## Development Notes
 
@@ -40,13 +39,6 @@ This is a multi-component project containing:
 - Custom WebSocket MCP transport protocol implemented (`WebSocketServerTransport`, `WebSocketClientTransport`)
 - Browser-defined MCP servers are treated as external servers by the proxy
 - Only tools are proxied (resources, prompts planned for future)
-
-### Chrome Extension (`extension/`)
-
-- Standard Manifest V3 extension structure
-- Main files: `manifest.json`, `popup.html`, `popup.js`, `service-worker.js`
-- Icons stored in `extension/images/`
-- Permissions: storage, sockets
 
 ### Demo Web Application (`demo/`)
 
