@@ -118,19 +118,6 @@ export class WebSocketServerTransport implements Transport {
      */
     async close(): Promise<void> {
         log("close() called");
-
-        // Close all active connections
-        for (const ws of this.connections) {
-            ws.close();
-        }
-        this.connections.clear();
-
-        // Close the WebSocket server
-        if (this.wsServer) {
-            this.wsServer.close();
-        }
-
-        log("WebSocket server transport closed");
     }
 
     /**
