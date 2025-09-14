@@ -56,12 +56,13 @@ This is a multi-component project containing:
 
 - `DemoMcpServer` class - Browser-based MCP server that registers with main proxy server
 - Implements `demo_ping` tool to demonstrate MCP server functionality
-- Service Worker integration for offline functionality
+- **Shared Worker** - Manages WebSocket connection to ensure only one connection per browser instance
 - Auto-connecting UI showing real-time connection status to main server
 
 **Architecture**:
 
 - Demo creates an MCP **server** that connects to main proxy server via WebSocket
+- Uses **Shared Worker** to manage WebSocket connection, preventing multiple connections across tabs
 - Uses custom `WebSocketClientTransport` to connect at `ws://localhost:3003`
 - Demonstrates the "Future Goal" of browser tabs defining MCP servers
 - Main server can route tool requests to this browser-defined MCP server
