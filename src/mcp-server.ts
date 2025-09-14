@@ -3,7 +3,6 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import express from "express";
 import { Command } from "commander";
-import { WebSocketServer } from "ws";
 import http from "http";
 import { McpClientsManager } from "./McpClientsManager";
 import { log } from "./utils.ts";
@@ -14,8 +13,6 @@ program.description("MCP Proxy Server").option("-p, --port <port>", "port to run
 program.parse();
 const { port } = program.opts();
 
-const clientsManager = new McpClientsManager();
-
 const server = new Server(
     {
         name: "mcp-proxy",
@@ -25,7 +22,13 @@ const server = new Server(
     { capabilities: { tools: {}, logging: {} } },
 );
 
-async function initializeTools() {
+let initialized = false;
+async function initializeTools(clientsManager: McpClientsManager) {
+    if (initialized) {
+        return;
+    }
+    initialized = true;
+
     interface MyTool {
         serverName: string;
         definition: Tool;
@@ -115,18 +118,16 @@ async function initializeTools() {
 }
 
 (async () => {
-    await initializeTools();
-
     // HTTP mode with WebSocket support
     const app = express();
     app.use(express.json());
 
-    // Track active WebSocket connections
-    const activeConnections = new Set();
-
     app.post("/mcp", async (req, res) => {
         log("HTTP request!");
         log(req.body);
+
+        await initializeTools(clientsManager);
+
         try {
             const transport = new StreamableHTTPServerTransport({
                 sessionIdGenerator: undefined, // stateless mode
@@ -156,38 +157,8 @@ async function initializeTools() {
     // Create HTTP server
     const httpServer = http.createServer(app);
 
-    // Create WebSocket server
-    const wss = new WebSocketServer({ server: httpServer });
-
-    wss.on("connection", (ws) => {
-        log("New WebSocket connection established");
-        activeConnections.add(ws);
-        log("Active connections:", activeConnections.size);
-
-        ws.send(
-            `Hi there! You're ${activeConnections.size}th in the queue. Your opinion is important to us.`,
-            (error) => log(error ?? "Sent a message"),
-        );
-
-        ws.on("message", (data) => {
-            log("WebSocket received message:", data.toString());
-        });
-
-        ws.on("close", (code, reason) => {
-            log("WebSocket connection closed:", { code, reason: reason.toString() });
-            activeConnections.delete(ws);
-            log("Active connections:", activeConnections.size);
-            ws.close();
-        });
-
-        ws.on("error", (error) => {
-            log("WebSocket error:", error);
-        });
-
-        ws.on("pong", (data) => {
-            log("WebSocket pong received:", data.toString());
-        });
-    });
+    // Initialize clients manager with HTTP server
+    const clientsManager = new McpClientsManager(httpServer);
 
     httpServer.listen(Number(port), () => {
         log(`MCP HTTP Server running on port ${port}`);

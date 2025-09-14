@@ -19,6 +19,11 @@
             "type": "http",
             "url": "http://localhost:3003/mcp",
             "enabled": false
+        },
+        {
+            "name": "websocket-proxy",
+            "type": "websocket",
+            "enabled": true
         }
     ]
 }
