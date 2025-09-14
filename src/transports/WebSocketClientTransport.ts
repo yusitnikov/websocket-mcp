@@ -5,10 +5,6 @@ import { log } from "../utils.js";
 export interface WebSocketClientTransportOptions {
     url: string;
     /**
-     * Maximum number of reconnection attempts. Default: 5
-     */
-    maxReconnectAttempts?: number;
-    /**
      * Initial reconnection delay in milliseconds. Default: 1000
      */
     reconnectDelay?: number;
@@ -16,10 +12,6 @@ export interface WebSocketClientTransportOptions {
      * Maximum reconnection delay in milliseconds. Default: 30000
      */
     maxReconnectDelay?: number;
-    /**
-     * WebSocket protocols to use during connection
-     */
-    protocols?: string | string[];
     /**
      * Connection timeout in milliseconds. Default: 10000
      */
@@ -33,10 +25,8 @@ export interface WebSocketClientTransportOptions {
 export class WebSocketClientTransport implements Transport {
     private ws: WebSocket | null = null;
     private url: string;
-    private maxReconnectAttempts: number;
     private reconnectDelay: number;
     private maxReconnectDelay: number;
-    private protocols?: string | string[];
     private connectionTimeout: number;
 
     private reconnectAttempts = 0;
@@ -53,10 +43,8 @@ export class WebSocketClientTransport implements Transport {
 
     constructor(options: WebSocketClientTransportOptions) {
         this.url = options.url;
-        this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;
         this.reconnectDelay = options.reconnectDelay ?? 1000;
         this.maxReconnectDelay = options.maxReconnectDelay ?? 30000;
-        this.protocols = options.protocols;
         this.connectionTimeout = options.connectionTimeout ?? 10000;
     }
 
@@ -124,7 +112,7 @@ export class WebSocketClientTransport implements Transport {
      */
     private connect(resolve?: () => void, reject?: (error: Error) => void): void {
         try {
-            this.ws = new WebSocket(this.url, this.protocols);
+            this.ws = new WebSocket(this.url);
 
             // Set connection timeout
             this.connectionTimeoutId = setTimeout(() => {
@@ -178,7 +166,7 @@ export class WebSocketClientTransport implements Transport {
 
                 log(`WebSocket closed with code ${code}: ${reason}`);
 
-                if (!this.isClosedIntentionally && this.reconnectAttempts < this.maxReconnectAttempts) {
+                if (!this.isClosedIntentionally) {
                     this.scheduleReconnect();
                 } else {
                     if (this.onclose) {
@@ -221,7 +209,7 @@ export class WebSocketClientTransport implements Transport {
 
         this.reconnectAttempts++;
 
-        log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
         this.reconnectTimeoutId = setTimeout(() => {
             this.reconnectTimeoutId = null;

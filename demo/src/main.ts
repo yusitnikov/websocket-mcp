@@ -12,39 +12,30 @@ const mcpDisconnectBtn = document.getElementById("mcp-disconnect-btn") as HTMLBu
 const mcpServer = new DemoMcpServer();
 
 // Service Worker functionality
-function checkServiceWorker(): void {
+async function registerServiceWorker(): Promise<void> {
     if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.getRegistration().then((registration: ServiceWorkerRegistration | undefined) => {
-            if (registration) {
-                log('Service Worker found:', registration);
-                swStatus.innerHTML = '<span class="success">✓ Service Worker is registered and active</span>';
-            } else {
-                log('Service Worker not registered');
-                swStatus.innerHTML = '<span class="warning">⚠ Service Worker not registered</span>';
-            }
-        });
+        try {
+            swStatus.innerHTML = '<span class="warning">🔄 Registering Service Worker...</span>';
+            const registration = await navigator.serviceWorker.register("/src/service-worker.ts");
+            log("Service Worker registered:", registration);
+            swStatus.innerHTML = '<span class="success">✓ Service Worker registered and active</span>';
+        } catch (error) {
+            log("Service Worker registration failed:", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            swStatus.innerHTML = `<span class="error">✗ Service Worker registration failed: ${errorMessage}</span>`;
+        }
     } else {
         swStatus.innerHTML = '<span class="error">✗ Service Worker not supported</span>';
     }
 }
 
 swBtn.addEventListener("click", () => {
-    if ("serviceWorker" in navigator) {
-        navigator.serviceWorker
-            .register("/src/service-worker.ts")
-            .then((registration: ServiceWorkerRegistration) => {
-                console.log("Service Worker registered:", registration);
-                swStatus.innerHTML = '<span class="success">✓ Service Worker registered successfully!</span>';
-            })
-            .catch((error: unknown) => {
-                console.error("Service Worker registration failed:", error);
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                swStatus.innerHTML = `<span class="error">✗ Service Worker registration failed: ${errorMessage}</span>`;
-            });
-    }
+    registerServiceWorker();
 });
 
 // MCP functionality
+let mcpStatusInterval: NodeJS.Timeout | null = null;
+
 function updateMcpStatus(): void {
     const status = mcpServer.getConnectionStatus();
     if (status.connected) {
@@ -52,23 +43,34 @@ function updateMcpStatus(): void {
         mcpConnectBtn.style.display = 'none';
         mcpDisconnectBtn.style.display = 'block';
     } else {
-        mcpStatus.innerHTML = '<span class="warning">⚠ Not connected to MCP server</span>';
+        mcpStatus.innerHTML = '<span class="warning">⚠ Not connected to MCP server (retrying...)</span>';
         mcpConnectBtn.style.display = 'block';
         mcpDisconnectBtn.style.display = 'none';
     }
 }
 
-mcpConnectBtn.addEventListener("click", async () => {
-    const wsUrl = "ws://localhost:3003"; // Default WebSocket URL for main server
+function startMcpStatusMonitoring(): void {
+    updateMcpStatus();
+    if (mcpStatusInterval) {
+        clearInterval(mcpStatusInterval);
+    }
+    mcpStatusInterval = setInterval(updateMcpStatus, 2000); // Update every 2 seconds
+}
+
+async function startMcpConnection(): Promise<void> {
+    const wsUrl = "ws://localhost:3003";
     try {
         mcpStatus.innerHTML = '<span class="warning">🔄 Connecting to MCP server...</span>';
         await mcpServer.connectToMainServer(wsUrl);
-        updateMcpStatus();
         log('MCP connection established');
     } catch (error) {
-        log('MCP connection failed:', error);
-        mcpStatus.innerHTML = `<span class="error">✗ Failed to connect: ${error instanceof Error ? error.message : String(error)}</span>`;
+        log('MCP connection failed, will retry automatically:', error);
+        // Don't update status here - let the monitoring handle it
     }
+}
+
+mcpConnectBtn.addEventListener("click", () => {
+    startMcpConnection();
 });
 
 mcpDisconnectBtn.addEventListener("click", async () => {
@@ -81,6 +83,16 @@ mcpDisconnectBtn.addEventListener("click", async () => {
     }
 });
 
-// Initialize
-checkServiceWorker();
-updateMcpStatus();
+// Initialize - auto-start everything
+async function initialize(): Promise<void> {
+    // Auto-register service worker
+    await registerServiceWorker();
+
+    // Start MCP status monitoring
+    startMcpStatusMonitoring();
+
+    // Auto-start MCP connection
+    await startMcpConnection();
+}
+
+initialize();

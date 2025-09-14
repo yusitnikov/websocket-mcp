@@ -16,16 +16,17 @@ export class DemoMcpServer {
             {
                 name: "demo-mcp-server",
                 version: "1.0.0",
-                title: "Demo MCP Server"
+                title: "Demo MCP Server",
             },
             {
                 capabilities: {
-                    tools: {}
-                }
-            }
+                    tools: {},
+                },
+            },
         );
 
         this.setupTools();
+        this.setupServerEventHandlers();
     }
 
     private setupTools(): void {
@@ -41,12 +42,12 @@ export class DemoMcpServer {
                             properties: {
                                 message: {
                                     type: "string",
-                                    description: "Message to echo back"
-                                }
-                            }
-                        }
-                    }
-                ]
+                                    description: "Message to echo back",
+                                },
+                            },
+                        },
+                    },
+                ],
             };
         });
 
@@ -57,14 +58,27 @@ export class DemoMcpServer {
                     content: [
                         {
                             type: "text",
-                            text: `Pong! You said: ${message}`
-                        }
-                    ]
+                            text: `Pong! You said: ${message}`,
+                        },
+                    ],
                 };
             }
 
             throw new Error(`Unknown tool: ${request.params.name}`);
         });
+    }
+
+    private setupServerEventHandlers(): void {
+        // Listen for server connection events
+        this.server.onclose = () => {
+            log("MCP server connection closed");
+            this.isConnected = false;
+        };
+
+        this.server.onerror = (error) => {
+            log("MCP server connection error:", error);
+            this.isConnected = false;
+        };
     }
 
     /**
@@ -74,31 +88,25 @@ export class DemoMcpServer {
         try {
             log(`Attempting to connect to main MCP server at: ${url}`);
 
-            const transport = new WebSocketClientTransport({
-                url,
-                maxReconnectAttempts: 3,
-                reconnectDelay: 1000
-            });
+            const transport = new WebSocketClientTransport({ url });
 
             // Connect the MCP server to this transport - server handles transport start
             await this.server.connect(transport);
 
             this.isConnected = true;
             log("Successfully connected MCP server to main server!");
-
         } catch (error) {
             log("Failed to connect to main server:", error);
             throw error;
         }
     }
 
-
     /**
      * Get connection status
      */
     getConnectionStatus(): { connected: boolean } {
         return {
-            connected: this.isConnected
+            connected: this.isConnected,
         };
     }
 
