@@ -9,7 +9,7 @@ export interface WebSocketClientTransportOptions {
      */
     reconnectDelay?: number;
     /**
-     * Maximum reconnection delay in milliseconds. Default: 30000
+     * Maximum reconnection delay in milliseconds. Default: 3000
      */
     maxReconnectDelay?: number;
     /**
@@ -44,7 +44,7 @@ export class WebSocketClientTransport implements Transport {
     constructor(options: WebSocketClientTransportOptions) {
         this.url = options.url;
         this.reconnectDelay = options.reconnectDelay ?? 1000;
-        this.maxReconnectDelay = options.maxReconnectDelay ?? 30000;
+        this.maxReconnectDelay = options.maxReconnectDelay ?? 3000;
         this.connectionTimeout = options.connectionTimeout ?? 10000;
     }
 
@@ -82,6 +82,8 @@ export class WebSocketClientTransport implements Transport {
      * Closes the WebSocket connection
      */
     async close(): Promise<void> {
+        log("Closed intentionally");
+
         this.isClosedIntentionally = true;
 
         if (this.reconnectTimeoutId) {
