@@ -1,14 +1,14 @@
 # Demo Web Application
 
-A modern web application built with **TypeScript**, **Vite**, demonstrating npm package integration and service worker functionality.
+A clean, minimal web application built with **TypeScript**, **Vite**, and **Service Worker** functionality.
 
 ## Features
 
 - 🚀 **Vite Development Server** with hot reload
-- 📦 **NPM Package Integration** (Lodash, Axios, MCP SDK, Zod) with full TypeScript support
-- ⚡ **Service Worker** for caching and offline functionality
-- 🎨 **Modern CSS** with responsive design
 - 📘 **Full TypeScript** support with strict typing
+- ⚡ **Service Worker** for basic caching and offline functionality
+- 🎨 **Modern CSS** with responsive design
+- 📦 **Ready for integration** with MCP SDK and Zod
 
 ## Quick Start
 
@@ -26,24 +26,15 @@ A modern web application built with **TypeScript**, **Vite**, demonstrating npm 
 
 ## What's Included
 
-### Frontend (Vite + TypeScript)
-- **Lodash Demo:** Shows array manipulation functions with full typing
-- **Axios Demo:** Fetches data from JSONPlaceholder API with typed responses
-- **Service Worker:** Caches resources for offline use with TypeScript events
-- **Responsive Design:** Works on desktop and mobile
-- **MCP SDK & Zod:** Ready for advanced integrations
+### Core Setup
+- **TypeScript** configuration with strict typing
+- **Vite** for fast development and building
+- **Service Worker** for basic offline functionality
+- **Clean, minimal UI** ready for customization
 
-### NPM Package Usage with TypeScript
-The project demonstrates how to use npm packages with full TypeScript support:
-
-```typescript
-import _ from 'lodash';                    // Utility functions
-import axios, { AxiosResponse } from 'axios'; // HTTP client
-
-// Use them with full type safety
-const chunked: number[][] = _.chunk([1,2,3,4,5,6], 2);
-const response: AxiosResponse<User[]> = await axios.get('/api/users');
-```
+### Available Packages
+- **@modelcontextprotocol/sdk** - Ready for MCP integration
+- **zod** - Schema validation library
 
 ## Available Scripts
 
@@ -62,30 +53,26 @@ demo/
 ├── src/
 │   ├── main.ts          # Main TypeScript
 │   ├── style.css        # Styling
-│   └── service-worker.ts # Service worker (TypeScript)
+│   └── service-worker.ts # Service worker
 └── public/              # Static assets
 ```
 
 ## Service Worker Features
 
-The service worker provides:
-- **Caching:** Static assets cached for offline use
-- **Background Sync:** For future data synchronization
-- **Push Notifications:** Ready for notification features
+- **Basic Caching** - Static assets cached for offline use
+- **Cache Management** - Automatic cleanup of old caches
+- **Same-origin only** - Only caches requests from your domain
 
 ## TypeScript Benefits
 
-- **Type Safety:** Catch errors at compile time
-- **IntelliSense:** Better IDE support and autocompletion
-- **Refactoring:** Safe and reliable code changes
-- **API Contracts:** Clear interfaces for data structures
+- **Type Safety** - Catch errors at compile time
+- **IntelliSense** - Better IDE support and autocompletion
+- **Refactoring** - Safe and reliable code changes
 
 ## Development Tips
 
-1. **Adding new npm packages:** `npm install package-name @types/package-name`
-2. **Using in code:** `import packageName from 'package-name'` with full type support
-3. **Hot reload:** Changes are reflected instantly during development
-4. **Type checking:** TypeScript validates your code in real-time
-5. **Production build:** Creates optimized bundle in `dist/`
+1. **Service Worker** - Check DevTools → Application → Service Workers to verify registration
+2. **TypeScript** - All code is strictly typed with no `any` usage
+3. **Ready to extend** - Add your own features, APIs, and integrations
 
-Enjoy building with modern TypeScript web technologies! 🎉
+Perfect foundation for building modern web applications! 🎉

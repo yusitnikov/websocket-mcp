@@ -35,8 +35,8 @@ self.addEventListener("activate", (event: ExtendableEvent) => {
 
 // Fetch event - serve from cache when possible
 self.addEventListener("fetch", (event: FetchEvent) => {
-    // Skip non-GET requests and external APIs
-    if (event.request.method !== "GET" || event.request.url.includes("jsonplaceholder.typicode.com")) {
+    // Only cache GET requests for same origin
+    if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) {
         return;
     }
 
@@ -67,37 +67,4 @@ self.addEventListener("fetch", (event: FetchEvent) => {
             });
         }),
     );
-});
-
-// Message event - handle messages from main thread
-self.addEventListener("message", (event: ExtendableMessageEvent) => {
-    if (event.data && event.data.type === "SKIP_WAITING") {
-        self.skipWaiting();
-    }
-});
-
-// Push notifications (if supported)
-self.addEventListener("push", (event: PushEvent) => {
-    console.log("Push message received:", event);
-
-    const options: NotificationOptions = {
-        body: event.data ? event.data.text() : "Default push message",
-        icon: "/icon-192x192.png",
-        badge: "/icon-72x72.png",
-        data: {
-            dateOfArrival: Date.now(),
-            primaryKey: "1",
-        },
-    };
-
-    event.waitUntil(self.registration.showNotification("Demo App", options));
-});
-
-// Notification click handling
-self.addEventListener("notificationclick", (event: NotificationEvent) => {
-    console.log("Notification clicked:", event);
-
-    event.notification.close();
-
-    event.waitUntil(self.clients.openWindow("/"));
 });
