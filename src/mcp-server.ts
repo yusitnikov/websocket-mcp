@@ -13,22 +13,7 @@ program.description("MCP Proxy Server").option("-p, --port <port>", "port to run
 program.parse();
 const { port } = program.opts();
 
-const server = new Server(
-    {
-        name: "mcp-proxy",
-        version: "1.0.0",
-        title: "MCP Proxy",
-    },
-    { capabilities: { tools: {} } },
-);
-
-let initialized = false;
-async function initializeTools(clientsManager: McpClientsManager) {
-    if (initialized) {
-        return;
-    }
-    initialized = true;
-
+async function initializeTools(server: Server, clientsManager: McpClientsManager) {
     interface MyTool {
         serverName: string;
         definition: Tool;
@@ -126,16 +111,26 @@ async function initializeTools(clientsManager: McpClientsManager) {
         log("HTTP request!");
         log(req.body);
 
-        await initializeTools(clientsManager);
-
         try {
+            const server = new Server(
+                {
+                    name: "mcp-proxy",
+                    version: "1.0.0",
+                    title: "MCP Proxy",
+                },
+                { capabilities: { tools: {} } },
+            );
+
+            await initializeTools(server, clientsManager);
+
             const transport = new StreamableHTTPServerTransport({
                 sessionIdGenerator: undefined, // stateless mode
             });
 
-            res.on("close", () => {
+            res.on("close", async () => {
                 log("HTTP request closed");
-                transport.close();
+                await transport.close();
+                await server.close();
             });
 
             await server.connect(transport);
