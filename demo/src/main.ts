@@ -1,3 +1,5 @@
+import { log } from '@main/utils.js';
+
 // DOM elements
 const swStatus = document.getElementById("sw-status") as HTMLDivElement;
 const swBtn = document.getElementById("sw-btn") as HTMLButtonElement;
@@ -7,8 +9,10 @@ function checkServiceWorker(): void {
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker.getRegistration().then((registration: ServiceWorkerRegistration | undefined) => {
             if (registration) {
+                log('Service Worker found:', registration);
                 swStatus.innerHTML = '<span class="success">✓ Service Worker is registered and active</span>';
             } else {
+                log('Service Worker not registered');
                 swStatus.innerHTML = '<span class="warning">⚠ Service Worker not registered</span>';
             }
         });

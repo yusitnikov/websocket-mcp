@@ -22,7 +22,13 @@
     /* Service Worker types */
     "types": ["vite/client", "serviceworker"],
     "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+
+    /* Path mapping */
+    "baseUrl": ".",
+    "paths": {
+      "@main/*": ["../src/*"]
+    }
   },
   "include": ["src/**/*", "*.ts", "vite.config.ts"]
 }
