@@ -1,3 +1,4 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from "@modelcontextprotocol/sdk/types.js";
@@ -6,6 +7,7 @@ import { Command } from "commander";
 import http from "http";
 import { McpClientsManager } from "./McpClientsManager";
 import { log } from "./utils.ts";
+import { WebSocketServerManager } from "./WebSocketServerManager.ts";
 
 const program = new Command();
 program.description("MCP Proxy Server").option("-p, --port <port>", "port to run the server on", "3003");
@@ -13,10 +15,7 @@ program.description("MCP Proxy Server").option("-p, --port <port>", "port to run
 program.parse();
 const { port } = program.opts();
 
-async function initializeTools(serverName: string, server: Server, clientsManager: McpClientsManager) {
-    log(`Connecting to server: ${serverName}`);
-    const client = await clientsManager.connectToServer(serverName);
-
+async function initializeTools(client: Client, server: Server, serverName: string) {
     server.setRequestHandler(ListToolsRequestSchema, async () => {
         log(`Requested tools list for ${serverName}`);
 
@@ -65,8 +64,11 @@ async function initializeTools(serverName: string, server: Server, clientsManage
     // Create HTTP server
     const httpServer = http.createServer(app);
 
+    // Listen to web sockets
+    const webSocketServerManager = new WebSocketServerManager(httpServer);
+
     // Initialize clients manager with HTTP server
-    const clientsManager = new McpClientsManager(httpServer);
+    const clientsManager = new McpClientsManager(webSocketServerManager);
 
     const serverNames = clientsManager.getEnabledServerNames();
     log("Found enabled servers:", serverNames);
@@ -77,6 +79,9 @@ async function initializeTools(serverName: string, server: Server, clientsManage
             log(req.body);
 
             try {
+                log(`Connecting to server: ${serverName}`);
+                const client = await clientsManager.connectToServer(serverName);
+
                 const server = new Server(
                     {
                         name: "mcp-proxy",
@@ -86,19 +91,19 @@ async function initializeTools(serverName: string, server: Server, clientsManage
                     { capabilities: { tools: {} } },
                 );
 
-                await initializeTools(serverName, server, clientsManager);
+                await initializeTools(client, server, serverName);
 
                 const transport = new StreamableHTTPServerTransport({
                     sessionIdGenerator: undefined, // stateless mode
                 });
+                await server.connect(transport);
 
                 res.on("close", async () => {
                     log("HTTP request closed");
-                    await transport.close();
+                    await client.close();
                     await server.close();
                 });
 
-                await server.connect(transport);
                 await transport.handleRequest(req, res, req.body);
                 log("Finished handling request");
             } catch (error) {

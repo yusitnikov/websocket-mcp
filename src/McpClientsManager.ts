@@ -6,8 +6,8 @@ import { WebSocketServerTransport } from "./transports/WebSocketServerTransport.
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Server as HttpServer } from "http";
 import { log } from "./utils.js";
+import { WebSocketServerManager } from "./WebSocketServerManager.ts";
 
 interface ServerConfig {
     name: string;
@@ -24,19 +24,9 @@ interface Config {
 
 export class McpClientsManager {
     private readonly config: Config;
-    private readonly transports = new Map<string, Transport>();
-    private readonly clients = new Map<string, Client>();
 
-    constructor(private readonly httpServer?: HttpServer) {
+    constructor(private readonly webSocketServerManager: WebSocketServerManager) {
         this.config = this.loadConfig();
-
-        for (const serverName of this.getEnabledServerNames()) {
-            try {
-                this.initTransport(serverName);
-            } catch (error) {
-                log(`Failed to init transport for ${serverName}:`, error);
-            }
-        }
     }
 
     private loadConfig(): Config {
@@ -62,11 +52,7 @@ export class McpClientsManager {
             throw new Error(`Server is disabled: ${serverName}`);
         }
 
-        if (this.clients.has(serverName)) {
-            return this.clients.get(serverName)!;
-        }
-
-        const transport = this.initTransport(serverName);
+        const transport = this.getTransport(serverName);
 
         const client = new Client({
             name: "mcp-bridge-client",
@@ -74,13 +60,12 @@ export class McpClientsManager {
         });
 
         await client.connect(transport);
-        this.clients.set(serverName, client);
 
         log(`Connected to MCP server: ${serverName}`);
         return client;
     }
 
-    private initTransport(serverName: string): Transport {
+    private getTransport(serverName: string): Transport {
         const serverConfig = this.config.servers.find((s) => s.name === serverName);
 
         if (!serverConfig) {
@@ -89,10 +74,6 @@ export class McpClientsManager {
 
         if (!serverConfig.enabled) {
             throw new Error(`Server is disabled: ${serverName}`);
-        }
-
-        if (this.transports.has(serverName)) {
-            return this.transports.get(serverName)!;
         }
 
         let transport: Transport;
@@ -116,35 +97,14 @@ export class McpClientsManager {
                 transport = new StreamableHTTPClientTransport(new URL(serverConfig.url));
                 break;
             case "websocket":
-                if (!this.httpServer) {
-                    throw new Error(`WebSocket server ${serverName} requires HTTP server instance`);
-                }
-
-                transport = new WebSocketServerTransport(this.httpServer);
+                transport = new WebSocketServerTransport(this.webSocketServerManager);
                 break;
             default:
                 throw new Error(`Unsupported server type: ${serverConfig.type}`);
         }
 
         log("Initialized transport for", serverName);
-        this.transports.set(serverName, transport);
         return transport;
-    }
-
-    async disconnectFromServer(serverName: string): Promise<void> {
-        const client = this.clients.get(serverName);
-        if (client) {
-            await client.close();
-            this.clients.delete(serverName);
-            log(`Disconnected from MCP server: ${serverName}`);
-        }
-    }
-
-    async disconnectAll(): Promise<void> {
-        const disconnectPromises = Array.from(this.clients.keys()).map((serverName) =>
-            this.disconnectFromServer(serverName),
-        );
-        await Promise.all(disconnectPromises);
     }
 
     getEnabledServerNames(): string[] {
