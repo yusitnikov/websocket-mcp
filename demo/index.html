@@ -10,15 +10,14 @@
     <div class="container">
         <header>
             <h1>Demo Web Application</h1>
-            <p>TypeScript + Vite + Service Worker</p>
+            <p>TypeScript + Vite + SharedWorker</p>
         </header>
 
         <main>
             <section class="demo-section">
-                <h2>Service Worker Status</h2>
+                <h2>SharedWorker Status</h2>
                 <div class="demo-content">
-                    <div id="sw-status">🔄 Auto-registering service worker...</div>
-                    <button id="sw-btn">Re-register Service Worker</button>
+                    <div id="sw-status">🔄 Auto-connecting to SharedWorker...</div>
                 </div>
             </section>
 
@@ -26,8 +25,6 @@
                 <h2>MCP WebSocket Status</h2>
                 <div class="demo-content">
                     <div id="mcp-status">🔄 Auto-connecting to MCP server...</div>
-                    <button id="mcp-connect-btn">Retry Connection</button>
-                    <button id="mcp-disconnect-btn" style="display: none;">Disconnect</button>
                 </div>
             </section>
         </main>

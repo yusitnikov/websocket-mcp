@@ -13,26 +13,29 @@ A clean, minimal web application built with **TypeScript**, **Vite**, and **Serv
 ## Quick Start
 
 1. **Install dependencies:**
-   ```bash
-   cd demo
-   npm install
-   ```
+
+    ```bash
+    cd demo
+    npm install
+    ```
 
 2. **Start development server:**
-   ```bash
-   npm run dev
-   ```
-   Open http://localhost:3000 in your browser
+    ```bash
+    npm run dev
+    ```
+    Open http://localhost:3000 in your browser
 
 ## What's Included
 
 ### Core Setup
+
 - **TypeScript** configuration with strict typing
 - **Vite** for fast development and building
 - **Service Worker** for basic offline functionality
 - **Clean, minimal UI** ready for customization
 
 ### Available Packages
+
 - **@modelcontextprotocol/sdk** - Ready for MCP integration
 - **zod** - Schema validation library
 
@@ -53,7 +56,7 @@ demo/
 ├── src/
 │   ├── main.ts          # Main TypeScript
 │   ├── style.css        # Styling
-│   └── service-worker.ts # Service worker
+│   └── shared-worker.ts # Service worker
 └── public/              # Static assets
 ```
 
