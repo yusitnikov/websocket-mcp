@@ -1,6 +1,6 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult, Tool } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from "@modelcontextprotocol/sdk/types.js";
 import express from "express";
 import { Command } from "commander";
 import http from "http";
@@ -13,77 +13,32 @@ program.description("MCP Proxy Server").option("-p, --port <port>", "port to run
 program.parse();
 const { port } = program.opts();
 
-async function initializeTools(server: Server, clientsManager: McpClientsManager) {
-    interface MyTool {
-        serverName: string;
-        definition: Tool;
-    }
-    const allTools: MyTool[] = [];
+async function initializeTools(serverName: string, server: Server, clientsManager: McpClientsManager) {
+    log(`Connecting to server: ${serverName}`);
+    const client = await clientsManager.connectToServer(serverName);
 
-    try {
-        const serverNames = clientsManager.getEnabledServerNames();
-        log("Found enabled servers:", serverNames);
+    server.setRequestHandler(ListToolsRequestSchema, async () => {
+        log(`Requested tools list for ${serverName}`);
 
-        for (const serverName of serverNames) {
-            try {
-                log(`Connecting to server: ${serverName}`);
-                const client = await clientsManager.connectToServer(serverName);
+        const { tools } = await client.listTools();
 
-                const { tools } = await client.listTools();
+        log(
+            `Server ${serverName} has ${tools.length} tools:`,
+            tools.map((tool) => tool.name),
+        );
 
-                log(
-                    `Server ${serverName} has ${tools.length} tools:`,
-                    tools.map((t) => t.name),
-                );
-
-                allTools.push(
-                    ...tools.map((tool) => ({
-                        serverName,
-                        definition: tool,
-                    })),
-                );
-            } catch (error) {
-                log(`Failed to connect to server ${serverName}:`, error);
-            }
-        }
-    } catch (error) {
-        log("Error initializing tools:", error);
-    }
-
-    server.setRequestHandler(ListToolsRequestSchema, () => {
-        log("Requested tools list");
-
-        return {
-            tools: allTools.map(({ definition }) => definition),
-        };
+        return { tools };
     });
 
     server.setRequestHandler(CallToolRequestSchema, async (request, extra): Promise<ServerResult> => {
         const { params } = request;
-        log(`Requested tool call ${params.name}`);
+        log(`Requested tool call ${params.name} of ${serverName}`);
         log("Parameters:", request, extra);
 
         try {
-            const tool = allTools.find((tool) => tool.definition.name === params.name);
-            if (!tool) {
-                log("Tool not found");
-
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: "Tool not found",
-                        },
-                    ],
-                    isError: true,
-                };
-            }
-
-            const client = await clientsManager.connectToServer(tool.serverName);
-
             const result = await client.callTool(params);
 
-            log("Tool call finished successfully");
+            log("Tool call finished successfully", result);
 
             return result;
         } catch (error: unknown) {
@@ -107,55 +62,60 @@ async function initializeTools(server: Server, clientsManager: McpClientsManager
     const app = express();
     app.use(express.json());
 
-    app.post("/mcp", async (req, res) => {
-        log("HTTP request!");
-        log(req.body);
-
-        try {
-            const server = new Server(
-                {
-                    name: "mcp-proxy",
-                    version: "1.0.0",
-                    title: "MCP Proxy",
-                },
-                { capabilities: { tools: {} } },
-            );
-
-            await initializeTools(server, clientsManager);
-
-            const transport = new StreamableHTTPServerTransport({
-                sessionIdGenerator: undefined, // stateless mode
-            });
-
-            res.on("close", async () => {
-                log("HTTP request closed");
-                await transport.close();
-                await server.close();
-            });
-
-            await server.connect(transport);
-            await transport.handleRequest(req, res, req.body);
-            log("Finished handling request");
-        } catch (error) {
-            log("Error handling MCP request:", error);
-            if (!res.headersSent) {
-                res.status(500).json({
-                    jsonrpc: "2.0",
-                    error: {
-                        code: -32603,
-                        message: "Internal server error",
-                    },
-                    id: null,
-                });
-            }
-        }
-    });
-
     // Create HTTP server
     const httpServer = http.createServer(app);
 
     // Initialize clients manager with HTTP server
     const clientsManager = new McpClientsManager(httpServer);
+
+    const serverNames = clientsManager.getEnabledServerNames();
+    log("Found enabled servers:", serverNames);
+
+    for (const serverName of serverNames) {
+        app.post(`/${serverName}`, async (req, res) => {
+            log("HTTP request!");
+            log(req.body);
+
+            try {
+                const server = new Server(
+                    {
+                        name: "mcp-proxy",
+                        version: "1.0.0",
+                        title: "MCP Proxy",
+                    },
+                    { capabilities: { tools: {} } },
+                );
+
+                await initializeTools(serverName, server, clientsManager);
+
+                const transport = new StreamableHTTPServerTransport({
+                    sessionIdGenerator: undefined, // stateless mode
+                });
+
+                res.on("close", async () => {
+                    log("HTTP request closed");
+                    await transport.close();
+                    await server.close();
+                });
+
+                await server.connect(transport);
+                await transport.handleRequest(req, res, req.body);
+                log("Finished handling request");
+            } catch (error) {
+                log("Error handling MCP request:", error);
+                if (!res.headersSent) {
+                    res.status(500).json({
+                        jsonrpc: "2.0",
+                        error: {
+                            code: -32603,
+                            message: "Internal server error",
+                        },
+                        id: null,
+                    });
+                }
+            }
+        });
+    }
 
     httpServer.listen(Number(port), () => {
         log(`MCP HTTP Server running on port ${port}`);
