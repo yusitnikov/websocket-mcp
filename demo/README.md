@@ -1,14 +1,14 @@
 # Demo Web Application
 
-A modern web application built with Vite, demonstrating npm package integration, service worker functionality, and Express.js backend.
+A modern web application built with **TypeScript**, **Vite**, demonstrating npm package integration and service worker functionality.
 
 ## Features
 
 - 🚀 **Vite Development Server** with hot reload
-- 📦 **NPM Package Integration** (Lodash, Axios)
+- 📦 **NPM Package Integration** (Lodash, Axios, MCP SDK, Zod) with full TypeScript support
 - ⚡ **Service Worker** for caching and offline functionality
 - 🎨 **Modern CSS** with responsive design
-- 🔧 **Express.js Backend** with API endpoints
+- 📘 **Full TypeScript** support with strict typing
 
 ## Quick Start
 
@@ -24,37 +24,25 @@ A modern web application built with Vite, demonstrating npm package integration,
    ```
    Open http://localhost:3000 in your browser
 
-3. **Optional - Start Express server (for API endpoints):**
-   ```bash
-   npm run server
-   ```
-   API available at http://localhost:4000
-
 ## What's Included
 
-### Frontend (Vite)
-- **Lodash Demo:** Shows array manipulation functions
-- **Axios Demo:** Fetches data from JSONPlaceholder API
-- **Service Worker:** Caches resources for offline use
+### Frontend (Vite + TypeScript)
+- **Lodash Demo:** Shows array manipulation functions with full typing
+- **Axios Demo:** Fetches data from JSONPlaceholder API with typed responses
+- **Service Worker:** Caches resources for offline use with TypeScript events
 - **Responsive Design:** Works on desktop and mobile
+- **MCP SDK & Zod:** Ready for advanced integrations
 
-### Backend (Express)
-- **API Endpoints:**
-  - `GET /api/demo` - Simple demo endpoint
-  - `GET /api/users` - Mock users data
-  - `POST /api/data` - Echo received data
-  - `GET /api/health` - Health check
+### NPM Package Usage with TypeScript
+The project demonstrates how to use npm packages with full TypeScript support:
 
-### NPM Package Usage
-The project demonstrates how to use npm packages in modern web development:
+```typescript
+import _ from 'lodash';                    // Utility functions
+import axios, { AxiosResponse } from 'axios'; // HTTP client
 
-```javascript
-import _ from 'lodash';        // Utility functions
-import axios from 'axios';    // HTTP client
-
-// Use them directly in your code
-const chunked = _.chunk([1,2,3,4,5,6], 2);
-const response = await axios.get('/api/users');
+// Use them with full type safety
+const chunked: number[][] = _.chunk([1,2,3,4,5,6], 2);
+const response: AxiosResponse<User[]> = await axios.get('/api/users');
 ```
 
 ## Available Scripts
@@ -62,20 +50,19 @@ const response = await axios.get('/api/users');
 - `npm run dev` - Start Vite development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
-- `npm run server` - Start Express API server
 
 ## Project Structure
 
 ```
 demo/
 ├── package.json          # Dependencies and scripts
-├── vite.config.js        # Vite configuration
+├── tsconfig.json         # TypeScript configuration
+├── vite.config.ts        # Vite configuration
 ├── index.html           # Entry point
-├── server.js            # Express server
 ├── src/
-│   ├── main.js          # Main JavaScript
+│   ├── main.ts          # Main TypeScript
 │   ├── style.css        # Styling
-│   └── service-worker.js # Service worker
+│   └── service-worker.ts # Service worker (TypeScript)
 └── public/              # Static assets
 ```
 
@@ -86,11 +73,19 @@ The service worker provides:
 - **Background Sync:** For future data synchronization
 - **Push Notifications:** Ready for notification features
 
+## TypeScript Benefits
+
+- **Type Safety:** Catch errors at compile time
+- **IntelliSense:** Better IDE support and autocompletion
+- **Refactoring:** Safe and reliable code changes
+- **API Contracts:** Clear interfaces for data structures
+
 ## Development Tips
 
-1. **Adding new npm packages:** `npm install package-name`
-2. **Using in code:** `import packageName from 'package-name'`
+1. **Adding new npm packages:** `npm install package-name @types/package-name`
+2. **Using in code:** `import packageName from 'package-name'` with full type support
 3. **Hot reload:** Changes are reflected instantly during development
-4. **Production build:** Creates optimized bundle in `dist/`
+4. **Type checking:** TypeScript validates your code in real-time
+5. **Production build:** Creates optimized bundle in `dist/`
 
-Enjoy building with modern web technologies! 🎉
+Enjoy building with modern TypeScript web technologies! 🎉

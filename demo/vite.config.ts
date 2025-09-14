@@ -12,5 +12,9 @@ export default defineConfig({
         main: 'index.html'
       }
     }
+  },
+  // Ensure TypeScript files are handled correctly
+  esbuild: {
+    target: 'es2020'
   }
 });
