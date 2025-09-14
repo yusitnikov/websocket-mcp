@@ -19,7 +19,7 @@ const server = new Server(
         version: "1.0.0",
         title: "MCP Proxy",
     },
-    { capabilities: { tools: {}, logging: {} } },
+    { capabilities: { tools: {} } },
 );
 
 let initialized = false;
