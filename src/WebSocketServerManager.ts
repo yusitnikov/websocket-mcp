@@ -20,7 +20,6 @@ export class WebSocketServerManager {
 
             ws.on("message", (data) => {
                 const dataStr = data.toString();
-                log("Got a message!", dataStr);
 
                 try {
                     const message = JSON.parse(dataStr);
@@ -68,8 +67,6 @@ export class WebSocketServerManager {
      * Sends a message to all connections
      */
     async send(message: any) {
-        log("Sending a message to web socket connections", message);
-
         // Validate connection count on-demand
         if (this.connections.size === 0) {
             throw new Error("No browser tabs connected");

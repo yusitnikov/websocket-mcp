@@ -1,4 +1,3 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -41,31 +40,7 @@ export class McpClientsManager {
         return JSON.parse(configContent);
     }
 
-    async connectToServer(serverName: string): Promise<Client> {
-        const serverConfig = this.config.servers.find((s) => s.name === serverName);
-
-        if (!serverConfig) {
-            throw new Error(`Server not found: ${serverName}`);
-        }
-
-        if (!serverConfig.enabled) {
-            throw new Error(`Server is disabled: ${serverName}`);
-        }
-
-        const transport = this.getTransport(serverName);
-
-        const client = new Client({
-            name: "mcp-bridge-client",
-            version: "1.0.0",
-        });
-
-        await client.connect(transport);
-
-        log(`Connected to MCP server: ${serverName}`);
-        return client;
-    }
-
-    private getTransport(serverName: string): Transport {
+    getTransport(serverName: string): Transport {
         const serverConfig = this.config.servers.find((s) => s.name === serverName);
 
         if (!serverConfig) {

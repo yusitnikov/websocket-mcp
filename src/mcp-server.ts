@@ -1,7 +1,4 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { CallToolRequestSchema, ListToolsRequestSchema, ServerResult } from "@modelcontextprotocol/sdk/types.js";
 import express from "express";
 import { Command } from "commander";
 import http from "http";
@@ -14,47 +11,6 @@ program.description("MCP Proxy Server").option("-p, --port <port>", "port to run
 
 program.parse();
 const { port } = program.opts();
-
-async function initializeTools(client: Client, server: Server, serverName: string) {
-    server.setRequestHandler(ListToolsRequestSchema, async () => {
-        log(`Requested tools list for ${serverName}`);
-
-        const { tools } = await client.listTools();
-
-        log(
-            `Server ${serverName} has ${tools.length} tools:`,
-            tools.map((tool) => tool.name),
-        );
-
-        return { tools };
-    });
-
-    server.setRequestHandler(CallToolRequestSchema, async (request, extra): Promise<ServerResult> => {
-        const { params } = request;
-        log(`Requested tool call ${params.name} of ${serverName}`);
-        log("Parameters:", request, extra);
-
-        try {
-            const result = await client.callTool(params);
-
-            log("Tool call finished successfully", result);
-
-            return result;
-        } catch (error: unknown) {
-            log("Tool call failed:", error);
-
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: String(error),
-                    },
-                ],
-                isError: true,
-            };
-        }
-    });
-}
 
 (async () => {
     // HTTP mode with WebSocket support
@@ -80,31 +36,33 @@ async function initializeTools(client: Client, server: Server, serverName: strin
 
             try {
                 log(`Connecting to server: ${serverName}`);
-                const client = await clientsManager.connectToServer(serverName);
 
-                const server = new Server(
-                    {
-                        name: "mcp-proxy",
-                        version: "1.0.0",
-                        title: "MCP Proxy",
-                    },
-                    { capabilities: { tools: {} } },
-                );
-
-                await initializeTools(client, server, serverName);
-
-                const transport = new StreamableHTTPServerTransport({
+                const inputTransport = new StreamableHTTPServerTransport({
                     sessionIdGenerator: undefined, // stateless mode
                 });
-                await server.connect(transport);
+                const outputTransport = clientsManager.getTransport(serverName);
+
+                inputTransport.onmessage = (message, extra) => {
+                    log(`[${serverName}]`);
+                    log("<<<", JSON.stringify(message, null, 4), JSON.stringify(extra, null, 4));
+                    outputTransport.send(message, {});
+                };
+                outputTransport.onmessage = (message, extra) => {
+                    log(`[${serverName}]`);
+                    log(">>>", JSON.stringify(message, null, 4), JSON.stringify(extra, null, 4));
+                    inputTransport.send(message, {});
+                };
+
+                await outputTransport.start();
+                await inputTransport.start();
 
                 res.on("close", async () => {
                     log("HTTP request closed");
-                    await client.close();
-                    await server.close();
+                    await inputTransport.close();
+                    await outputTransport.close();
                 });
 
-                await transport.handleRequest(req, res, req.body);
+                await inputTransport.handleRequest(req, res, req.body);
                 log("Finished handling request");
             } catch (error) {
                 log("Error handling MCP request:", error);
