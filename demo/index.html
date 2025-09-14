@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Web App</title>
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Demo Web Application</h1>
+            <p>Showcasing Vite, npm packages, and service worker</p>
+        </header>
+
+        <main>
+            <section class="demo-section">
+                <h2>Lodash Demo</h2>
+                <div class="demo-content">
+                    <button id="lodash-btn">Test Lodash Functions</button>
+                    <div id="lodash-result"></div>
+                </div>
+            </section>
+
+            <section class="demo-section">
+                <h2>Axios Demo</h2>
+                <div class="demo-content">
+                    <button id="api-btn">Fetch Data from API</button>
+                    <div id="api-result"></div>
+                </div>
+            </section>
+
+            <section class="demo-section">
+                <h2>Service Worker Status</h2>
+                <div class="demo-content">
+                    <div id="sw-status">Checking service worker...</div>
+                    <button id="sw-btn">Register Service Worker</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
