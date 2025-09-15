@@ -8,10 +8,10 @@ import { log } from "@main/utils.js";
  * This server will connect as a client to the main WebSocket server
  */
 export class DemoMcpServer {
-    private server: Server;
-    private isConnected = false;
+    private readonly server: Server;
+    private readonly transport: WebSocketClientTransport;
 
-    constructor() {
+    constructor(url: string) {
         this.server = new Server(
             {
                 name: "demo-mcp-server",
@@ -25,8 +25,9 @@ export class DemoMcpServer {
             },
         );
 
+        this.transport = new WebSocketClientTransport({ url });
+
         this.setupTools();
-        this.setupServerEventHandlers();
     }
 
     private setupTools(): void {
@@ -68,32 +69,16 @@ export class DemoMcpServer {
         });
     }
 
-    private setupServerEventHandlers(): void {
-        // Listen for server connection events
-        this.server.onclose = () => {
-            log("MCP server connection closed");
-            this.isConnected = false;
-        };
-
-        this.server.onerror = (error) => {
-            log("MCP server connection error:", error);
-            this.isConnected = false;
-        };
-    }
-
     /**
      * Connect to the main MCP server via WebSocket and start the MCP server with this transport
      */
-    async connectToMainServer(url: string): Promise<void> {
+    async connectToMainServer() {
         try {
-            log(`Attempting to connect to main MCP server at: ${url}`);
-
-            const transport = new WebSocketClientTransport({ url });
+            log("Attempting to connect to the main MCP server");
 
             // Connect the MCP server to this transport - server handles transport start
-            await this.server.connect(transport);
+            await this.server.connect(this.transport);
 
-            this.isConnected = true;
             log("Successfully connected MCP server to main server!");
         } catch (error) {
             log("Failed to connect to main server:", error);
@@ -104,18 +89,9 @@ export class DemoMcpServer {
     /**
      * Get connection status
      */
-    getConnectionStatus(): { connected: boolean } {
+    getConnectionStatus() {
         return {
-            connected: this.isConnected,
+            connected: this.transport.isConnected,
         };
-    }
-
-    /**
-     * Disconnect from main server
-     */
-    async disconnect(): Promise<void> {
-        await this.server.close();
-        this.isConnected = false;
-        log("Disconnected from main server");
     }
 }

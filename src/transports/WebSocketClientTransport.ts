@@ -1,6 +1,6 @@
 import { Transport, TransportSendOptions } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { JSONRPCMessage, MessageExtraInfo } from "@modelcontextprotocol/sdk/types.js";
-import { log } from "../utils.js";
+import { ErrorCode, JSONRPCMessage, McpError, MessageExtraInfo } from "@modelcontextprotocol/sdk/types.js";
+import { AbortablePromise, log, sleep } from "../utils.js";
 
 export interface WebSocketClientTransportOptions {
     url: string;
@@ -13,7 +13,7 @@ export interface WebSocketClientTransportOptions {
      */
     maxReconnectDelay?: number;
     /**
-     * Connection timeout in milliseconds. Default: 10000
+     * Connection timeout in milliseconds. Default: 1000
      */
     connectionTimeout?: number;
 }
@@ -29,12 +29,7 @@ export class WebSocketClientTransport implements Transport {
     private maxReconnectDelay: number;
     private connectionTimeout: number;
 
-    private reconnectAttempts = 0;
-    private reconnectTimeoutId: NodeJS.Timeout | null = null;
-    private connectionTimeoutId: NodeJS.Timeout | null = null;
     private isClosedIntentionally = false;
-    // @ts-ignore
-    private protocolVersion?: string;
 
     public sessionId?: string;
     public onclose?: () => void;
@@ -45,16 +40,157 @@ export class WebSocketClientTransport implements Transport {
         this.url = options.url;
         this.reconnectDelay = options.reconnectDelay ?? 1000;
         this.maxReconnectDelay = options.maxReconnectDelay ?? 3000;
-        this.connectionTimeout = options.connectionTimeout ?? 10000;
+        this.connectionTimeout = options.connectionTimeout ?? 1000;
+    }
+
+    get isConnected() {
+        return this.ws !== null;
+    }
+
+    private connectPromise?: AbortablePromise<void>;
+
+    private connect() {
+        log("Starting to connect!");
+
+        this.connectPromise = new AbortablePromise<void>((resolve, reject, signal) => {
+            (async () => {
+                try {
+                    for (let attempt = 1; !signal.aborted; attempt++) {
+                        try {
+                            await this.tryToConnect(signal);
+                            break;
+                        } catch (error) {
+                            if (signal.aborted) {
+                                break;
+                            }
+                            log(`Connect attempt ${attempt} failed:`, error);
+                            await sleep(Math.min(this.reconnectDelay * Math.pow(2, attempt), this.maxReconnectDelay));
+                        }
+                    }
+
+                    log("Finished connecting!");
+
+                    resolve();
+                } catch (error) {
+                    log("Aborted connecting, I guess?");
+                    reject(error);
+                }
+            })();
+        });
+
+        return this.connectPromise;
+    }
+
+    private async tryToConnect(connectPromise: AbortSignal) {
+        const ws = new WebSocket(this.url);
+
+        connectPromise.addEventListener("abort", () => {
+            log("Got abort signal!");
+            ws.close();
+        });
+
+        await Promise.race([
+            sleep(this.connectionTimeout).then(() => {
+                throw new McpError(
+                    ErrorCode.RequestTimeout,
+                    `WebSocket connection timeout after ${this.connectionTimeout}ms`,
+                );
+            }),
+            new Promise<void>((resolve, reject) => {
+                const onClose = ({ code, reason }: CloseEvent) => {
+                    log("Connection closed on startup", code, reason);
+                    reject(new Error(reason));
+                };
+
+                ws.addEventListener("close", onClose);
+
+                ws.addEventListener("open", () => {
+                    ws.removeEventListener("close", onClose);
+
+                    if (connectPromise.aborted) {
+                        reject(new Error("Requested to close the connection"));
+                        return;
+                    }
+
+                    log(`WebSocket connected to ${this.url}`);
+                    this.ws = ws;
+                    resolve();
+                });
+            }),
+        ]);
+
+        ws.addEventListener("message", ({ data }) => {
+            if (connectPromise.aborted) {
+                log("Got a message, but it's not the active socket anymore");
+                return;
+            }
+
+            try {
+                const message = JSON.parse(data.toString()) as JSONRPCMessage;
+
+                // Handle resumption token updates if present
+                const extra: MessageExtraInfo | undefined = undefined;
+
+                this.onmessage?.(message, extra);
+            } catch (error) {
+                log("Failed to parse message:", error);
+                this.onerror?.(
+                    new McpError(
+                        ErrorCode.ParseError,
+                        `Failed to parse message: ${error instanceof Error ? error.message : String(error)}`,
+                    ),
+                );
+            }
+        });
+
+        ws.addEventListener("close", ({ code, reason }) => {
+            if (connectPromise.aborted) {
+                log("Closed the connection, but it's not the active socket anymore");
+                return;
+            }
+
+            log(`WebSocket closed with code ${code}: ${reason}`);
+
+            this.ws = null;
+
+            if (!this.isClosedIntentionally) {
+                this.connect();
+            }
+        });
+
+        ws.addEventListener("error", (ev) => {
+            if (connectPromise.aborted) {
+                log("Got an error, but it's not the active socket anymore");
+                return;
+            }
+
+            log("WebSocket error:", ev);
+            this.onerror?.(new McpError(ErrorCode.InternalError, "Unknown socket error"));
+        });
     }
 
     /**
      * Starts the WebSocket connection and message processing
      */
     async start(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.connect(resolve, reject);
-        });
+        log("Requested to start");
+
+        this.isClosedIntentionally = false;
+
+        await (this.connectPromise ?? this.connect());
+    }
+
+    /**
+     * Closes the WebSocket connection
+     */
+    async close() {
+        log("Requested to close");
+
+        this.isClosedIntentionally = true;
+
+        this.ws = null;
+        this.connectPromise?.abort();
+        this.connectPromise = undefined;
     }
 
     /**
@@ -79,153 +215,9 @@ export class WebSocketClientTransport implements Transport {
     }
 
     /**
-     * Closes the WebSocket connection
-     */
-    async close(): Promise<void> {
-        log("Closed intentionally");
-
-        this.isClosedIntentionally = true;
-
-        if (this.reconnectTimeoutId) {
-            clearTimeout(this.reconnectTimeoutId);
-            this.reconnectTimeoutId = null;
-        }
-
-        if (this.connectionTimeoutId) {
-            clearTimeout(this.connectionTimeoutId);
-            this.connectionTimeoutId = null;
-        }
-
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
-        }
-    }
-
-    /**
      * Sets the protocol version for this connection
      */
     setProtocolVersion(version: string): void {
-        this.protocolVersion = version;
-    }
-
-    /**
-     * Establishes WebSocket connection with error handling and timeout
-     */
-    private connect(resolve?: () => void, reject?: (error: Error) => void): void {
-        try {
-            this.ws = new WebSocket(this.url);
-
-            // Set connection timeout
-            this.connectionTimeoutId = setTimeout(() => {
-                if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
-                    this.ws.close();
-                    const error = new Error(`WebSocket connection timeout after ${this.connectionTimeout}ms`);
-                    if (reject) {
-                        reject(error);
-                    } else {
-                        this.handleError(error);
-                    }
-                }
-            }, this.connectionTimeout);
-
-            this.ws.addEventListener("open", () => {
-                if (this.connectionTimeoutId) {
-                    clearTimeout(this.connectionTimeoutId);
-                    this.connectionTimeoutId = null;
-                }
-
-                this.reconnectAttempts = 0;
-                log(`WebSocket connected to ${this.url}`);
-
-                if (resolve) {
-                    resolve();
-                }
-            });
-
-            this.ws.addEventListener("message", ({ data }) => {
-                try {
-                    const message = JSON.parse(data.toString()) as JSONRPCMessage;
-
-                    // Handle resumption token updates if present
-                    const extra: MessageExtraInfo | undefined = undefined;
-
-                    if (this.onmessage) {
-                        this.onmessage(message, extra);
-                    }
-                } catch (error) {
-                    this.handleError(
-                        new Error(`Failed to parse message: ${error instanceof Error ? error.message : String(error)}`),
-                    );
-                }
-            });
-
-            this.ws.addEventListener("close", ({ code, reason }) => {
-                if (this.connectionTimeoutId) {
-                    clearTimeout(this.connectionTimeoutId);
-                    this.connectionTimeoutId = null;
-                }
-
-                log(`WebSocket closed with code ${code}: ${reason}`);
-
-                if (!this.isClosedIntentionally) {
-                    this.scheduleReconnect();
-                } else {
-                    if (this.onclose) {
-                        this.onclose();
-                    }
-                }
-            });
-
-            this.ws.addEventListener("error", (ev) => {
-                if (this.connectionTimeoutId) {
-                    clearTimeout(this.connectionTimeoutId);
-                    this.connectionTimeoutId = null;
-                }
-
-                log("WebSocket error:", ev);
-                const error = new Error("Unknown socket error");
-                if (reject) {
-                    reject(error);
-                } else {
-                    this.handleError(error);
-                }
-            });
-        } catch (error) {
-            const err = new Error(
-                `Failed to create WebSocket connection: ${error instanceof Error ? error.message : String(error)}`,
-            );
-            if (reject) {
-                reject(err);
-            } else {
-                this.handleError(err);
-            }
-        }
-    }
-
-    /**
-     * Schedules a reconnection attempt with exponential backoff
-     */
-    private scheduleReconnect(): void {
-        const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
-
-        this.reconnectAttempts++;
-
-        log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
-
-        this.reconnectTimeoutId = setTimeout(() => {
-            this.reconnectTimeoutId = null;
-            this.connect();
-        }, delay);
-    }
-
-    /**
-     * Handles errors by invoking the error callback if available
-     */
-    private handleError(error: Error): void {
-        log("WebSocket transport error:", error);
-        if (this.onerror) {
-            this.onerror(error);
-        }
+        log("Protocol version is", version);
     }
 }

@@ -6,15 +6,14 @@ import { log } from "@main/utils.js";
 declare const self: SharedWorkerGlobalScope;
 
 // Global MCP server instance - ensures single instance across all tabs
-const mcpServer = new DemoMcpServer();
+const mcpServer = new DemoMcpServer("ws://localhost:3003");
 const connectedPorts: MessagePort[] = [];
 
 // Auto-connect to main MCP server when shared worker starts
 async function initializeMcpConnection(): Promise<void> {
-    const wsUrl = "ws://localhost:3003";
     try {
         log("SharedWorker: Auto-connecting to MCP server...");
-        await mcpServer.connectToMainServer(wsUrl);
+        await mcpServer.connectToMainServer();
         log("SharedWorker: MCP connection established");
         notifyAllPorts({ type: "mcp-status-change", connected: true });
     } catch (error) {
