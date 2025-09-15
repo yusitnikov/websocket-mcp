@@ -7,7 +7,7 @@ const mcpStatus = document.getElementById("mcp-status") as HTMLDivElement;
 // SharedWorker functionality
 let sharedWorker: SharedWorker | null = null;
 
-async function connectSharedWorker(): Promise<void> {
+function connectSharedWorker() {
     try {
         swStatus.innerHTML = '<span class="warning">🔄 Connecting to Shared Worker...</span>';
 
@@ -47,7 +47,7 @@ function updateMcpStatusDisplay(connected: boolean): void {
     }
 }
 
-async function updateMcpStatus(): Promise<void> {
+function updateMcpStatus() {
     // Get status from shared worker
     if (sharedWorker) {
         sharedWorker.port.postMessage({ type: "get-mcp-status" });
@@ -67,9 +67,9 @@ function startMcpStatusMonitoring(): void {
 // SharedWorker auto-manages connection, no manual buttons needed
 
 // Initialize - auto-start everything
-async function initialize(): Promise<void> {
+function initialize() {
     // Auto-connect shared worker (which will auto-connect MCP)
-    await connectSharedWorker();
+    connectSharedWorker();
 
     // Start MCP status monitoring
     startMcpStatusMonitoring();
