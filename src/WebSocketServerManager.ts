@@ -73,7 +73,10 @@ export class WebSocketServerManager {
         }
 
         if (this.connections.size > 1) {
-            throw new Error(`Expected 1 browser connection, got ${this.connections.size}`);
+            log(`Expected 1 browser connection, got ${this.connections.size}`);
+            for (const connection of this.connections) {
+                log(`- readyState: ${connection.readyState}`);
+            }
         }
 
         const connection = this.connections.values().next().value!;
