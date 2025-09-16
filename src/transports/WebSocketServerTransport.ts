@@ -26,6 +26,9 @@ export class WebSocketServerTransport implements Transport {
             return;
         }
 
+        // Check that we have an active connection - the method will throw an error otherwise
+        this.manager.getActiveConnection();
+
         const onMessage = (message: any) => this.onmessage?.(message, {});
         const onError = (error: Error) => this.onerror?.(error);
         const onClose = () => this.onclose?.();
@@ -52,11 +55,18 @@ export class WebSocketServerTransport implements Transport {
      * Sends a JSON-RPC message to the connected browser
      */
     async send(message: JSONRPCMessage, options?: TransportSendOptions): Promise<void> {
-        await this.manager.send({
-            ...message,
-            ...(options?.resumptionToken && { resumptionToken: options.resumptionToken }),
-            ...(options?.relatedRequestId && { relatedRequestId: options.relatedRequestId }),
-        });
+        try {
+            await this.manager.send({
+                ...message,
+                ...(options?.resumptionToken && { resumptionToken: options.resumptionToken }),
+                ...(options?.relatedRequestId && { relatedRequestId: options.relatedRequestId }),
+            });
+        } catch (error) {
+            log("WebSocket server manager error:", error);
+            log("Message:", message);
+            log("Options:", options);
+            throw error;
+        }
     }
 
     /**

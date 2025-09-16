@@ -5,6 +5,7 @@ import http from "http";
 import { McpClientsManager } from "./McpClientsManager";
 import { log } from "./utils.ts";
 import { WebSocketServerManager } from "./WebSocketServerManager.ts";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 
 const program = new Command();
 program.description("MCP Proxy Server").option("-p, --port <port>", "port to run the server on", "3003");
@@ -45,12 +46,38 @@ const { port } = program.opts();
                 inputTransport.onmessage = (message, extra) => {
                     log(`[${serverName}]`);
                     log("<<<", JSON.stringify(message, null, 4), JSON.stringify(extra, null, 4));
-                    outputTransport.send(message, {});
+                    outputTransport.send(message, {}).catch((error) => {
+                        log(`[${serverName}]`);
+                        log("<<< Failed to forward the message to outputTransport:", error);
+                    });
                 };
                 outputTransport.onmessage = (message, extra) => {
                     log(`[${serverName}]`);
                     log(">>>", JSON.stringify(message, null, 4), JSON.stringify(extra, null, 4));
-                    inputTransport.send(message, {});
+                    inputTransport.send(message, {}).catch((error) => {
+                        log(`[${serverName}]`);
+                        log(">>> Failed to forward the message to inputTransport:", error);
+                    });
+                };
+                inputTransport.onerror = (error) => {
+                    log(`[${serverName}]`);
+                    log("<<< ERROR:", error);
+                    // TODO
+                };
+                outputTransport.onerror = (error) => {
+                    log(`[${serverName}]`);
+                    log(">>> ERROR:", error);
+                    // TODO
+                };
+                inputTransport.onclose = () => {
+                    log(`[${serverName}]`);
+                    log("<<< CLOSE");
+                    // TODO
+                };
+                outputTransport.onclose = () => {
+                    log(`[${serverName}]`);
+                    log(">>> CLOSE");
+                    // TODO
                 };
 
                 await outputTransport.start();
@@ -69,10 +96,16 @@ const { port } = program.opts();
                 if (!res.headersSent) {
                     res.status(500).json({
                         jsonrpc: "2.0",
-                        error: {
-                            code: -32603,
-                            message: "Internal server error",
-                        },
+                        error:
+                            error instanceof McpError
+                                ? {
+                                      code: error.code,
+                                      message: error.message,
+                                  }
+                                : {
+                                      code: ErrorCode.InternalError,
+                                      message: "Internal server error",
+                                  },
                         id: null,
                     });
                 }

@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { Server } from "http";
 import { log } from "./utils.js";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 
 export class WebSocketServerManager {
     private readonly connections = new Set<WebSocket>();
@@ -63,13 +64,10 @@ export class WebSocketServerManager {
         log("WebSocket server started");
     }
 
-    /**
-     * Sends a message to all connections
-     */
-    async send(message: any) {
+    getActiveConnection() {
         // Validate connection count on-demand
         if (this.connections.size === 0) {
-            throw new Error("No browser tabs connected");
+            throw new McpError(ErrorCode.ConnectionClosed, "No browser tabs connected");
         }
 
         if (this.connections.size > 1) {
@@ -79,7 +77,14 @@ export class WebSocketServerManager {
             }
         }
 
-        const connection = this.connections.values().next().value!;
+        return this.connections.values().next().value!;
+    }
+
+    /**
+     * Sends a message to all connections
+     */
+    async send(message: any) {
+        const connection = this.getActiveConnection();
 
         try {
             connection.send(JSON.stringify(message));
