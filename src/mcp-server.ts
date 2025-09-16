@@ -5,7 +5,18 @@ import http from "http";
 import { McpClientsManager } from "./McpClientsManager";
 import { log } from "./utils.ts";
 import { WebSocketServerManager } from "./WebSocketServerManager.ts";
-import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import {
+    ErrorCode,
+    McpError,
+    ListToolsRequestSchema,
+    CallToolRequestSchema,
+    ListResourcesRequestSchema,
+    ListResourceTemplatesRequestSchema,
+    ReadResourceRequestSchema,
+    ListResourcesResult,
+} from "@modelcontextprotocol/sdk/types.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 const program = new Command();
 program.description("MCP Proxy Server").option("-p, --port <port>", "port to run the server on", "3003");
@@ -32,67 +43,102 @@ const { port } = program.opts();
 
     for (const serverName of serverNames) {
         app.post(`/${serverName}`, async (req, res) => {
-            log("HTTP request!");
+            log(`HTTP request to ${serverName}!`);
             log(req.body);
 
             try {
                 log(`Connecting to server: ${serverName}`);
 
-                const inputTransport = new StreamableHTTPServerTransport({
-                    sessionIdGenerator: undefined, // stateless mode
+                const server = new Server(
+                    {
+                        name: serverName,
+                        version: "1.0.0",
+                    },
+                    {
+                        capabilities: { tools: {}, resources: {} },
+                    },
+                );
+                server.setRequestHandler(ListToolsRequestSchema, async ({ params }) => {
+                    log(`${serverName} requested to list tools:`, params);
+                    const client = await getClient();
+                    const response = await client.listTools(params);
+                    log("Response:", response);
+                    return response;
                 });
-                const outputTransport = clientsManager.getTransport(serverName);
+                server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
+                    log(`${serverName} requested to call a tool:`, params);
+                    const client = await getClient();
+                    const response = await client.callTool(params);
+                    log("Response:", response);
+                    return response;
+                });
+                server.setRequestHandler(
+                    ListResourcesRequestSchema,
+                    async ({ params }): Promise<ListResourcesResult> => {
+                        log(`${serverName} requested resources list:`, params);
+                        const client = await getClient();
+                        const response = await client.listResources(params);
+                        log("Response:", response);
+                        return response;
+                    },
+                );
+                server.setRequestHandler(ListResourceTemplatesRequestSchema, async ({ params }) => {
+                    log(`${serverName} requested resource templates list:`, params);
+                    const client = await getClient();
+                    const response = await client.listResourceTemplates(params);
+                    log("Response:", response);
+                    return response;
+                });
+                server.setRequestHandler(ReadResourceRequestSchema, async ({ params }) => {
+                    log(`${serverName} requested to read a resource:`, params);
+                    const client = await getClient();
+                    const response = await client.readResource(params);
+                    log("Response:", response);
+                    return response;
+                });
 
-                inputTransport.onmessage = (message, extra) => {
-                    log(`[${serverName}]`);
-                    log("<<<", JSON.stringify(message, null, 4), JSON.stringify(extra, null, 4));
-                    outputTransport.send(message, {}).catch((error) => {
-                        log(`[${serverName}]`);
-                        log("<<< Failed to forward the message to outputTransport:", error);
-                    });
-                };
-                outputTransport.onmessage = (message, extra) => {
-                    log(`[${serverName}]`);
-                    log(">>>", JSON.stringify(message, null, 4), JSON.stringify(extra, null, 4));
-                    inputTransport.send(message, {}).catch((error) => {
-                        log(`[${serverName}]`);
-                        log(">>> Failed to forward the message to inputTransport:", error);
-                    });
-                };
-                inputTransport.onerror = (error) => {
-                    log(`[${serverName}]`);
-                    log("<<< ERROR:", error);
-                    // TODO
-                };
-                outputTransport.onerror = (error) => {
-                    log(`[${serverName}]`);
-                    log(">>> ERROR:", error);
-                    // TODO
-                };
-                inputTransport.onclose = () => {
-                    log(`[${serverName}]`);
-                    log("<<< CLOSE");
-                    // TODO
-                };
-                outputTransport.onclose = () => {
-                    log(`[${serverName}]`);
-                    log(">>> CLOSE");
-                    // TODO
-                };
+                let client: Client | undefined;
+                const getClient = async (): Promise<Client> => {
+                    if (client === undefined) {
+                        log(`Connecting to the server ${serverName}...`);
+                        try {
+                            client = new Client(
+                                {
+                                    name: "Client proxy",
+                                    version: "1.0.0",
+                                },
+                                {
+                                    capabilities: { tools: {}, resources: {} },
+                                },
+                            );
+                            await client.connect(clientsManager.getTransport(serverName));
+                        } catch (error) {
+                            log(`Failed to connect to ${serverName}:`, error);
+                            throw error instanceof McpError
+                                ? error
+                                : new McpError(ErrorCode.ConnectionClosed, "Cannot connect to the server");
+                        }
+                    }
 
-                await outputTransport.start();
-                await inputTransport.start();
+                    return client;
+                };
 
                 res.on("close", async () => {
-                    log("HTTP request closed");
-                    await inputTransport.close();
-                    await outputTransport.close();
+                    log(`HTTP request for ${serverName} is closed`);
+                    await server.close();
+                    if (client instanceof Client) {
+                        await client.close();
+                    }
                 });
 
-                await inputTransport.handleRequest(req, res, req.body);
-                log("Finished handling request");
+                const serverTransport = new StreamableHTTPServerTransport({
+                    sessionIdGenerator: undefined, // stateless mode
+                });
+                await server.connect(serverTransport);
+                await serverTransport.handleRequest(req, res, req.body);
+                log(`Finished handling request for ${serverName}`);
             } catch (error) {
-                log("Error handling MCP request:", error);
+                log(`Error handling MCP request for ${serverName}:`, error);
                 if (!res.headersSent) {
                     res.status(500).json({
                         jsonrpc: "2.0",

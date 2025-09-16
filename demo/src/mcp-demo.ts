@@ -1,5 +1,11 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+    CallToolRequestSchema,
+    ListResourcesRequestSchema,
+    ListToolsRequestSchema,
+    ReadResourceRequestSchema,
+    ReadResourceResult,
+} from "@modelcontextprotocol/sdk/types.js";
 import { WebSocketClientTransport } from "@main/transports/WebSocketClientTransport.js";
 import { log } from "@main/utils.js";
 
@@ -21,6 +27,7 @@ export class DemoMcpServer {
             {
                 capabilities: {
                     tools: {},
+                    resources: {},
                 },
             },
         );
@@ -66,6 +73,33 @@ export class DemoMcpServer {
             }
 
             throw new Error(`Unknown tool: ${request.params.name}`);
+        });
+
+        this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+            return {
+                resources: [
+                    {
+                        name: "test-resource-name",
+                        title: "Test Resource Title",
+                        uri: "stam://file/path/example.json",
+                        mimeType: "text/json",
+                    },
+                ],
+            };
+        });
+
+        this.server.setRequestHandler(ReadResourceRequestSchema, async ({ params }): Promise<ReadResourceResult> => {
+            log(`Requested ${params.uri}`);
+
+            return {
+                contents: [
+                    {
+                        uri: params.uri,
+                        mimeType: "text/json",
+                        text: JSON.stringify({ foo: "bar" }),
+                    },
+                ],
+            };
         });
     }
 
