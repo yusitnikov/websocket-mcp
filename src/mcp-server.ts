@@ -46,6 +46,7 @@ const { port } = program.opts();
             log(`HTTP request to ${serverName}!`);
             log(req.body);
 
+            // TODO: look at mcp-remote implementation for reference
             try {
                 log(`Connecting to server: ${serverName}`);
 
@@ -96,6 +97,7 @@ const { port } = program.opts();
                     log("Response:", response);
                     return response;
                 });
+                // TODO: prompts, ...
 
                 let client: Client | undefined;
                 const getClient = async (): Promise<Client> => {
