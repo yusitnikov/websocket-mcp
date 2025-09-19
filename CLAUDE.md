@@ -4,67 +4,83 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a multi-component project containing:
+This is an NX monorepo implementing an MCP proxy system with browser-based MCP servers:
 
-1. **MCP Server** - A Model Context Protocol server implementation using the MCP SDK
-2. **Demo Web Application** - A Vite-based web app demonstrating browser-to-MCP server connectivity via WebSocket
+**Apps:**
+- `apps/demo/` - Browser demo that creates MCP servers in SharedWorkers and connects them to the proxy
+
+**Packages:**
+- `packages/websocket-mcp-backend/` - HTTP proxy server that bridges MCP clients (like Claude) to external MCP servers via stdio, HTTP, or WebSocket
+- `packages/websocket-mcp-frontend/` - Provides `WebSocketClientTransport` for browser-based MCP servers to connect to the proxy
+- `packages/tab-sync/` - Provides `TabSyncClient` and `TabSyncServer` for coordinating multiple browser tabs through SharedWorkers
 
 ## Development Notes
 
-- **IMPORTANT**: MCP server is launched directly from the IDE using TypeScript files (`.ts`)
-- **DO NOT** use build commands (`npm run build`, `npm run watch`) - they are not part of the development workflow
+- **CRITICAL**: NEVER execute any commands, bash scripts, npm scripts, or NX commands yourself
+- **CRITICAL**: NEVER launch, start, run, or test any servers, applications, or tools yourself
+- **CRITICAL**: If testing is needed, ask the user to do it instead
+- MCP proxy server entry point is `packages/websocket-mcp-backend/src/bin/run.ts`
 - **DO NOT** access or run files from `dist/` directory
-- Launch `src/mcp-server.ts` directly in the IDE for development
 - **IMPORTANT**: always use the log function from utils.ts for any kind of logging, never use console.log and such.
 
 ## Architecture
 
-### MCP Server (`src/mcp-server.ts`)
+### MCP Proxy Server (`packages/websocket-mcp-backend/`)
 
 **Core Architecture:**
 
-- Entry point: `src/mcp-server.ts` (run directly from IDE)
+- Entry point: `packages/websocket-mcp-backend/src/bin/run.ts`
 - **MCP Proxy Server** - Acts as a proxy/bridge between MCP clients (like Claude) and multiple MCP servers
 - Uses `@modelcontextprotocol/sdk` for MCP server implementation
-- Exposes HTTP transport for MCP clients at `/mcp` endpoint on configurable port (default: 3003)
-- Currently proxies tool requests/responses between MCP clients and external MCP servers
-- Supports browser tabs defining MCP servers via WebSocket connections (implemented)
+- Exposes HTTP endpoints for each configured server at `/{serverName}` on configurable port (default: 3003)
+- Proxies tool and resource requests/responses between MCP clients and external MCP servers
+- Supports browser-based MCP servers via WebSocket connections
 
 **Current State:**
 
 - `McpClientsManager` - Manages connections to external MCP servers based on `mcp-config.json`
-- Server configuration supports both stdio and HTTP server types for external MCP servers
-- Express.js server handles MCP HTTP requests at `/mcp` endpoint
-- WebSocket server implemented and working - browser tabs can register as MCP servers
+- Server configuration supports stdio, HTTP, and WebSocket server types for external MCP servers
+- Express.js server handles MCP HTTP requests at individual server endpoints
+- WebSocket server implemented - browser tabs can register as MCP servers
 - Custom WebSocket MCP transport protocol implemented (`WebSocketServerTransport`, `WebSocketClientTransport`)
 - Browser-defined MCP servers are treated as external servers by the proxy
-- Only tools are proxied (resources, prompts planned for future)
+- Tools and resources are proxied (prompts planned for future)
 
-### Demo Web Application (`demo/`)
+### Demo Web Application (`apps/demo/`)
 
-**Purpose**: Working prototype of browser-based MCP servers connecting via WebSocket
-
-**Key Components**:
-
-- `DemoMcpServer` class - Browser-based MCP server that registers with main proxy server
-- Implements `demo_ping` tool to demonstrate MCP server functionality
-- **Shared Worker** - Manages WebSocket connection to ensure only one connection per browser instance
-- Auto-connecting UI showing real-time connection status to main server
+**Purpose**: Browser demo proving MCP servers can run in browser tabs and connect to the proxy
 
 **Architecture**:
 
-- Demo creates an MCP **server** that connects to main proxy server via WebSocket
-- Uses **Shared Worker** to manage WebSocket connection, preventing multiple connections across tabs
-- Uses custom `WebSocketClientTransport` to connect at `ws://localhost:3003`
-- Demonstrates the "Future Goal" of browser tabs defining MCP servers
-- Main server can route tool requests to this browser-defined MCP server
+- Demo creates an MCP **server** in a SharedWorker that connects to the proxy via WebSocket
+- SharedWorker ensures only one WebSocket connection per browser instance (one SharedWorker = one connection)
+- Browser-based MCP server implements `demo_ping` and `get_tabs` tools
+- Tab synchronization system shows which tabs are connected to the same SharedWorker
+- Proxy can route tool requests from MCP clients (like Claude) to this browser-defined MCP server
+
+### WebSocket MCP Frontend (`packages/websocket-mcp-frontend/`)
+
+**Purpose**: Enables browser-based MCP servers to connect to the proxy server
+
+**Key Export**: `WebSocketClientTransport` - MCP transport implementation that connects via WebSocket to the proxy server
+
+### Tab Sync (`packages/tab-sync/`)
+
+**Purpose**: Enables communication between browser tabs via SharedWorker
+
+**Key Exports**:
+- `TabSyncClient` - Browser tab component that connects to SharedWorker and receives tab updates
+- `TabSyncServer` - SharedWorker component that manages connected tabs and broadcasts changes
+- Tab info tracking with creation time, dynamic titles, and connection status
+- SharedWorker keeps running even when tabs are inactive, ensuring all tabs remain trackable by the sync system
 
 ## Configuration Files
 
 - `mcp-config.json` - Required configuration file for MCP server connections (referenced by `McpClientsManager`)
-- `vite.config.ts` - Build configuration (not used in development, only for production builds)
-- `package.json` - Project dependencies and scripts (build commands exist but should not be used)
-- TypeScript configured with ES2022 target, Node.js 22 runtime
+- `nx.json` - NX workspace configuration with build targets and plugins
+- Root `package.json` - Workspace dependencies and NX scripts
+- Root `tsconfig.json` - TypeScript configuration with path mappings for packages
+- Individual `project.json` files in each app/package define NX targets
 
 ## Key Dependencies
 
@@ -76,7 +92,6 @@ This is a multi-component project containing:
 
 ## Important: What NOT to Do
 
-- **DO NOT** run build commands (`npm run build`, `npm run watch`) - development uses TypeScript directly
-- **DO NOT** suggest compilation steps - development works directly from TypeScript source
+- **DO NOT** execute any commands, scripts, or launch any processes
 - **DO NOT** access or reference files in `dist/` directory - they are not used in development
-- **DO NOT** launch the MCP server via command line - it's handled by the IDE
+- **DO NOT** suggest compilation steps - development works directly from TypeScript source
