@@ -2,7 +2,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import { Command } from "commander";
 import http from "http";
-import { McpClientsManager } from "./McpClientsManager";
+import { getWebSocketPathFromConfig, McpClientsManager } from "./McpClientsManager";
 import { log } from "./utils.ts";
 import { WebSocketServerManager } from "./WebSocketServerManager.ts";
 import {
@@ -38,10 +38,16 @@ const { port } = program.opts();
     // Initialize clients manager with HTTP server
     const clientsManager = new McpClientsManager(webSocketServerManager);
 
-    const serverNames = clientsManager.getEnabledServerNames();
-    log("Found enabled servers:", serverNames);
+    const servers = clientsManager.getEnabledServers();
 
-    for (const serverName of serverNames) {
+    for (const config of servers) {
+        const serverName = config.name;
+
+        log(`HTTP endpoint: http://localhost:${port}/${serverName}`);
+        if (config.type === "websocket") {
+            log(`WebSocket endpoint: ws://localhost:${port}${getWebSocketPathFromConfig(config)}`);
+        }
+
         app.post(`/${serverName}`, async (req, res) => {
             log(`HTTP request to ${serverName}!`);
             log(req.body);
@@ -161,9 +167,5 @@ const { port } = program.opts();
         });
     }
 
-    httpServer.listen(Number(port), () => {
-        log(`MCP HTTP Server running on port ${port}`);
-        log(`HTTP endpoint: http://localhost:${port}/mcp`);
-        log(`WebSocket endpoint: ws://localhost:${port}`);
-    });
+    httpServer.listen(Number(port), () => log(`MCP HTTP server running on port ${port}`));
 })();

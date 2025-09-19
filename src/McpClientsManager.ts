@@ -28,6 +28,9 @@ interface WebSocketServerConfig extends BaseServerConfig {
     type: "websocket";
     path?: string;
 }
+// Default path to server name if not provided, then normalize to ensure it starts with /
+export const getWebSocketPathFromConfig = ({ name, path = name }: WebSocketServerConfig) =>
+    path.startsWith("/") ? path : `/${path}`;
 
 type ServerConfig = StdioServerConfig | HttpServerConfig | WebSocketServerConfig;
 
@@ -86,10 +89,10 @@ export class McpClientsManager {
                 transport = new StreamableHTTPClientTransport(new URL(serverConfig.url));
                 break;
             case "websocket":
-                // Default path to server name if not provided, then normalize to ensure it starts with /
-                const pathOrDefault = serverConfig.path || serverConfig.name;
-                const normalizedPath = pathOrDefault.startsWith('/') ? pathOrDefault : `/${pathOrDefault}`;
-                transport = new WebSocketServerTransport(this.webSocketServerManager, normalizedPath);
+                transport = new WebSocketServerTransport(
+                    this.webSocketServerManager,
+                    getWebSocketPathFromConfig(serverConfig),
+                );
                 break;
             default:
                 throw new Error(`Unsupported server type: ${(serverConfig as any).type}`);
@@ -99,7 +102,7 @@ export class McpClientsManager {
         return transport;
     }
 
-    getEnabledServerNames(): string[] {
-        return this.config.servers.filter((server) => server.enabled).map((server) => server.name);
+    getEnabledServers() {
+        return this.config.servers.filter((server) => server.enabled);
     }
 }

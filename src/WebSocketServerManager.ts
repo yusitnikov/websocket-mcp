@@ -73,7 +73,7 @@ export class WebSocketServerManager {
     logConnections() {
         log(`Total connections: ${this.connections.size}.`);
         for (const { ws, url } of this.connections) {
-            log(`- ${url} (${ws.readyState})`);
+            log(`- ${url} (${socketReadyStateMap[ws.readyState]})`);
         }
     }
 
@@ -118,3 +118,10 @@ export class WebSocketServerManager {
         }
     }
 }
+
+const socketReadyStateMap = {
+    [WebSocket.CONNECTING]: "connecting",
+    [WebSocket.OPEN]: "open",
+    [WebSocket.CLOSING]: "closing",
+    [WebSocket.CLOSED]: "closed",
+};
