@@ -44,7 +44,6 @@ The server name determines the HTTP endpoint URL that AI clients use to access t
         {
             "name": "filesystem",
             "type": "stdio",
-            "enabled": true,
             "command": "npx",
             "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/files"]
         }
@@ -105,7 +104,6 @@ Connect to command-line MCP servers:
 {
     "name": "git-tools",
     "type": "stdio",
-    "enabled": true,
     "command": "npx",
     "args": ["-y", "@modelcontextprotocol/server-git"]
 }
@@ -119,7 +117,6 @@ Connect to HTTP-based MCP servers:
 {
     "name": "external-api",
     "type": "http",
-    "enabled": true,
     "url": "http://localhost:3001"
 }
 ```
@@ -132,7 +129,6 @@ Accept browser-based MCP servers:
 {
     "name": "database-ui",
     "type": "websocket",
-    "enabled": true,
     "path": "/db"
 }
 ```
@@ -141,7 +137,7 @@ Accept browser-based MCP servers:
 
 - **name**: Server identifier that becomes part of the HTTP endpoint URL (`http://localhost:3003/{name}`) that AI clients use
 - **type**: How the proxy connects to the server - "stdio" (command-line), "http" (existing HTTP server), or "websocket" (browser connection)
-- **enabled**: Whether this server should be started (true/false)
+- **enabled**: Whether this server should be started (optional, defaults to true, set to false to disable)
 - **command/args**: For stdio servers - the command and arguments to launch the MCP server process
 - **url**: For HTTP servers - the existing HTTP server URL to connect to
 - **path**: For WebSocket servers - the WebSocket URL path where browsers should connect (defaults to `/{name}`)

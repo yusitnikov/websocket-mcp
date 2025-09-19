@@ -7,7 +7,7 @@ import { McpServerProxy, McpServerProxyOptions } from "./McpServerProxy.ts";
 
 interface BaseServerConfig {
     name: string;
-    enabled: boolean;
+    enabled?: boolean;
 }
 
 interface StdioServerConfig extends BaseServerConfig {
@@ -35,7 +35,7 @@ export const loadConfigs = (path: string) => {
 
     const configContent = fs.readFileSync(path, "utf8");
     const config = JSON.parse(configContent) as { servers: ServerConfig[] };
-    return config.servers.filter((server) => server.enabled);
+    return config.servers.filter((server) => server.enabled !== false);
 };
 
 export const getProxyOptionsFromConfig = (config: ServerConfig, proxy: McpServerProxy): McpServerProxyOptions => {

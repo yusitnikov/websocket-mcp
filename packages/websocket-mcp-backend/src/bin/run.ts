@@ -41,17 +41,7 @@ if (configPath) {
 for (const arg of webSocketArgs) {
     const [name, path] = arg.split(":", 2);
 
-    proxyServer.proxy(
-        getProxyOptionsFromConfig(
-            {
-                name,
-                enabled: true,
-                type: "websocket",
-                path,
-            },
-            proxyServer,
-        ),
-    );
+    proxyServer.proxy(getProxyOptionsFromConfig({ type: "websocket", name, path }, proxyServer));
 }
 
 proxyServer.start();
