@@ -1,78 +1,68 @@
 import { log } from "@main/utils.js";
+import { McpServerPingData } from "./types.ts";
+import { TabSyncClient } from "@main/tab-sync/TabSyncClient.ts";
 
 // DOM elements
 const swStatus = document.getElementById("sw-status") as HTMLDivElement;
 const mcpStatus = document.getElementById("mcp-status") as HTMLDivElement;
+const currentTabId = document.getElementById("current-tab-id") as HTMLSpanElement;
+const tabCount = document.getElementById("tab-count") as HTMLSpanElement;
+const tabsTbody = document.getElementById("tabs-tbody") as HTMLTableSectionElement;
 
-// SharedWorker functionality
-let sharedWorker: SharedWorker | null = null;
+const tabSyncClient = new TabSyncClient<McpServerPingData>({
+    sharedWorkerPath: "/src/shared-worker.ts",
+    sharedWorkerOptions: {
+        name: "MCP server + tabs sync",
+        type: "module",
+    },
+});
 
-function connectSharedWorker() {
-    try {
-        swStatus.innerHTML = '<span class="warning">🔄 Connecting to Shared Worker...</span>';
+tabSyncClient.onTabsChanged = (tabs) => {
+    // Update tab info
+    currentTabId.textContent = String(tabSyncClient.myTabInfo.id);
+    tabCount.textContent = tabs.length.toString();
 
-        sharedWorker = new SharedWorker("/src/shared-worker.ts", { type: "module" });
+    // Update tab table
+    tabsTbody.innerHTML = "";
+    tabs.forEach((tab) => {
+        const row = document.createElement("tr");
 
-        // Listen for messages from shared worker
-        sharedWorker.port.addEventListener("message", (event) => {
-            log("Message from the shared worker:", event.data);
-            const { type, connected, status } = event.data;
+        if (tab.id === tabSyncClient.myTabInfo.id) {
+            row.style.backgroundColor = "#e3f2fd";
+        }
 
-            if (type === "mcp-status-change") {
-                updateMcpStatusDisplay(connected);
-            } else if (type === "mcp-status-response") {
-                updateMcpStatusDisplay(status.connected);
-            }
-        });
+        const idCell = document.createElement("td");
+        idCell.textContent = String(tab.id);
 
-        sharedWorker.port.start();
+        const titleCell = document.createElement("td");
+        titleCell.textContent = tab.dynamicInfo.title;
 
-        log("SharedWorker connected");
-        swStatus.innerHTML = '<span class="success">✓ SharedWorker connected and active</span>';
-    } catch (error) {
-        log("SharedWorker connection failed:", error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        swStatus.innerHTML = `<span class="error">✗ SharedWorker connection failed: ${errorMessage}</span>`;
-    }
-}
+        const createdCell = document.createElement("td");
+        createdCell.textContent = new Date(tab.createdAt).toLocaleTimeString();
 
-// MCP functionality
-let mcpStatusInterval: NodeJS.Timeout | null = null;
+        row.appendChild(idCell);
+        row.appendChild(titleCell);
+        row.appendChild(createdCell);
+        tabsTbody.appendChild(row);
+    });
+};
 
-function updateMcpStatusDisplay(connected: boolean): void {
+tabSyncClient.onExtraPingDataChanged = ({ connected }) => {
     if (connected) {
         mcpStatus.innerHTML = '<span class="success">✓ Connected to MCP server</span>';
     } else {
         mcpStatus.innerHTML = '<span class="warning">⚠ Not connected to MCP server</span>';
     }
+};
+
+try {
+    tabSyncClient.start();
+
+    log("SharedWorker connected");
+    swStatus.innerHTML = '<span class="success">✓ SharedWorker connected and active</span>';
+} catch (error) {
+    log("SharedWorker connection failed:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    swStatus.innerHTML = `<span class="error">✗ SharedWorker connection failed: ${errorMessage}</span>`;
+    mcpStatus.innerHTML = "";
 }
-
-function updateMcpStatus() {
-    // Get status from shared worker
-    if (sharedWorker) {
-        sharedWorker.port.postMessage({ type: "get-mcp-status" });
-    } else {
-        mcpStatus.innerHTML = '<span class="error">✗ SharedWorker not available</span>';
-    }
-}
-
-function startMcpStatusMonitoring(): void {
-    updateMcpStatus();
-    if (mcpStatusInterval) {
-        clearInterval(mcpStatusInterval);
-    }
-    mcpStatusInterval = setInterval(updateMcpStatus, 2000); // Update every 2 seconds
-}
-
-// SharedWorker auto-manages connection, no manual buttons needed
-
-// Initialize - auto-start everything
-function initialize() {
-    // Auto-connect shared worker (which will auto-connect MCP)
-    connectSharedWorker();
-
-    // Start MCP status monitoring
-    startMcpStatusMonitoring();
-}
-
-initialize();

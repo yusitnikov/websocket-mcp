@@ -7,28 +7,43 @@
     <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Demo Web Application</h1>
-            <p>TypeScript + Vite + SharedWorker</p>
-        </header>
+    <header>
+        <h1>Demo Web Application</h1>
+        <p>TypeScript + Vite + SharedWorker</p>
+    </header>
 
-        <main>
-            <section class="demo-section">
-                <h2>SharedWorker Status</h2>
-                <div class="demo-content">
-                    <div id="sw-status">🔄 Auto-connecting to SharedWorker...</div>
-                </div>
-            </section>
+    <main>
+        <section class="demo-section">
+            <h2>Connection Status</h2>
+            <div class="demo-content">
+                <div id="sw-status">🔄 Auto-connecting to SharedWorker...</div>
+                <div id="mcp-status">🔄 Auto-connecting to MCP server...</div>
+            </div>
+        </section>
 
-            <section class="demo-section">
-                <h2>MCP WebSocket Status</h2>
-                <div class="demo-content">
-                    <div id="mcp-status">🔄 Auto-connecting to MCP server...</div>
+        <section class="demo-section">
+            <h2>Tab Tracking</h2>
+            <div class="demo-content">
+                <div id="tab-info">
+                    <p><strong>Current Tab ID:</strong> <span id="current-tab-id">-</span></p>
+                    <p><strong>Total Tabs:</strong> <span id="tab-count">-</span></p>
                 </div>
-            </section>
-        </main>
-    </div>
+                <div id="tab-list">
+                    <h3>All Open Tabs:</h3>
+                    <table id="tabs-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Title</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabs-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <script type="module" src="/src/main.ts"></script>
 </body>

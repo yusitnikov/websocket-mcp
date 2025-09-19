@@ -13,12 +13,6 @@ body {
     min-height: 100vh;
 }
 
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
 /* Header styles */
 header {
     text-align: center;
@@ -41,6 +35,8 @@ header p {
 main {
     display: flex;
     gap: 2rem;
+    justify-content: center;
+    align-items: start;
 }
 
 .demo-section {
@@ -50,8 +46,7 @@ main {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    width: 100%;
-    max-width: 400px;
+    flex: 0 1 auto;
 }
 
 .demo-section h2 {
@@ -111,28 +106,37 @@ button:active {
     font-weight: 600;
 }
 
-/* Service worker status */
-#sw-status {
+/* Table styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Tab info styles */
+#tab-info {
     background: #f8f9fa;
     padding: 1rem;
     border-radius: 8px;
-    border-left: 4px solid #6c757d;
     margin-bottom: 1rem;
-    font-weight: 500;
-    text-align: center;
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-    .container {
-        padding: 1rem;
-    }
-
-    header h1 {
-        font-size: 2rem;
-    }
-
-    .demo-section {
-        padding: 1.5rem;
-    }
+#tab-info p {
+    margin: 0.5rem 0;
 }
