@@ -8,7 +8,25 @@ This approach might seem inefficient at first, but it's actually quite elegant. 
 
 ## Key Components
 
-The system consists of three main components working together. The `McpClientsManager` reads the `mcp-config.json` file and creates appropriate transports based on the server type (stdio, HTTP, or WebSocket). The `WebSocketServerManager` handles WebSocket connections from browsers at different URL paths. Finally, the `WebSocketServerTransport` acts as a bridge between WebSocket connections and the MCP protocol.
+The system consists of a modular architecture with clear separation of concerns:
+
+### McpServerProxy
+The main orchestrator class that handles:
+- Express.js HTTP server setup and management
+- WebSocket server initialization through `WebSocketServerManager`
+- Request routing and proxy endpoint creation
+- Per-request MCP Server and Client lifecycle management
+
+### Configuration System (configs.ts)
+Provides two focused functions for configuration management:
+- `loadConfigs()` - Reads and validates `mcp-config.json`, filtering enabled servers
+- `getProxyOptionsFromConfig()` - Converts configuration objects into `McpServerProxyOptions` with appropriate transport factories
+
+### WebSocketServerManager
+Handles WebSocket connections from browsers at different URL paths, enabling browser-based MCP servers to connect to the proxy.
+
+### WebSocketServerTransport
+Acts as a bridge between WebSocket connections and the MCP protocol, allowing seamless integration of browser-based servers into the proxy ecosystem.
 
 ## WebSocket Handling
 

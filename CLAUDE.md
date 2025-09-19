@@ -37,7 +37,8 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 
 **Current State:**
 
-- `McpClientsManager` - Manages connections to external MCP servers based on `mcp-config.json`
+- `McpServerProxy` - Main proxy class that handles HTTP server setup, WebSocket management, and request routing
+- Configuration system (`configs.ts`) - Loads server configurations from `mcp-config.json` and generates transport options
 - Server configuration supports stdio, HTTP, and WebSocket server types for external MCP servers
 - Express.js server handles MCP HTTP requests at individual server endpoints
 - WebSocket server implemented - browser tabs can register as MCP servers
@@ -83,7 +84,7 @@ Each package and app includes comprehensive documentation:
 
 ## Configuration Files
 
-- `mcp-config.json` - Required configuration file for MCP server connections (referenced by `McpClientsManager`)
+- `mcp-config.json` - Required configuration file for MCP server connections (loaded by `configs.ts`)
 - `nx.json` - NX workspace configuration with build targets and plugins
 - Root `package.json` - Workspace dependencies and NX scripts
 - Root `tsconfig.json` - TypeScript configuration with path mappings for packages

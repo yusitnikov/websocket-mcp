@@ -1,6 +1,6 @@
 # WebSocket MCP Backend
 
-HTTP proxy server that bridges MCP clients (like Claude Code) to multiple MCP servers via stdio, HTTP, or WebSocket connections.
+HTTP proxy server that bridges MCP clients (like Claude Code) to multiple MCP servers via stdio, HTTP, or WebSocket connections. Features a modular architecture with `McpServerProxy` as the main orchestrator and a flexible configuration system.
 
 ## Installation
 
