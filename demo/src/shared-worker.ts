@@ -15,6 +15,10 @@ import {
 
 declare const self: SharedWorkerGlobalScope;
 
+// Extract serverName from URL parameters
+const urlParams = new URLSearchParams(self.location.search);
+const serverName = urlParams.get("serverName") || "demo";
+
 const tabSyncServer = new TabSyncServer<McpServerPingData>({
     scope: self,
     getExtraPingData: () => ({ connected: mcpTransport.isConnected }),
@@ -22,9 +26,9 @@ const tabSyncServer = new TabSyncServer<McpServerPingData>({
 
 const mcpServer = new Server(
     {
-        name: "demo-mcp-server",
+        name: `demo-mcp-server-${serverName}`,
         version: "1.0.0",
-        title: "Demo MCP Server",
+        title: `Demo MCP Server (${serverName})`,
     },
     {
         capabilities: {
@@ -71,7 +75,7 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
                 content: [
                     {
                         type: "text",
-                        text: `Pong! You said: ${message}`,
+                        text: `Pong! I'm ${serverName}. You said: ${message}`,
                     },
                 ],
             };
@@ -126,7 +130,7 @@ mcpServer.setRequestHandler(ReadResourceRequestSchema, async ({ params }): Promi
 });
 // endregion
 
-const mcpTransport = new WebSocketClientTransport({ url: "ws://localhost:3003" });
+const mcpTransport = new WebSocketClientTransport({ url: `ws://localhost:3003/${serverName}` });
 
 tabSyncServer.start();
 

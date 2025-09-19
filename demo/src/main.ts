@@ -9,10 +9,13 @@ const currentTabId = document.getElementById("current-tab-id") as HTMLSpanElemen
 const tabCount = document.getElementById("tab-count") as HTMLSpanElement;
 const tabsTbody = document.getElementById("tabs-tbody") as HTMLTableSectionElement;
 
+// Extract name from URL hash (everything after #)
+const serverName = window.location.hash.startsWith("#") ? window.location.hash.substring(1) : "demo";
+
 const tabSyncClient = new TabSyncClient<McpServerPingData>({
-    sharedWorkerPath: "/src/shared-worker.ts",
+    sharedWorkerPath: `/src/shared-worker.ts?serverName=${encodeURIComponent(serverName)}`,
     sharedWorkerOptions: {
-        name: "MCP server + tabs sync",
+        name: `MCP server + tabs sync (${serverName})`,
         type: "module",
     },
 });

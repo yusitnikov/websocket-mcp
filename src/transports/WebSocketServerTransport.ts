@@ -2,6 +2,7 @@ import { Transport, TransportSendOptions } from "@modelcontextprotocol/sdk/share
 import { JSONRPCMessage, MessageExtraInfo } from "@modelcontextprotocol/sdk/types.js";
 import { log } from "../utils.js";
 import { WebSocketServerManager } from "../WebSocketServerManager.ts";
+import path from "path";
 
 /**
  * WebSocket server transport for Model Context Protocol.
@@ -13,21 +14,22 @@ export class WebSocketServerTransport implements Transport {
     public onerror?: (error: Error) => void;
     public onmessage?: (message: JSONRPCMessage, extra?: MessageExtraInfo) => void;
 
-    constructor(private readonly manager: WebSocketServerManager) {
-        log("WebSocket server started");
-    }
+    constructor(
+        private readonly manager: WebSocketServerManager,
+        private readonly path: string,
+    ) {}
 
     private _close?: () => void;
 
     async start() {
-        log("Start WebSocketServerTransport");
+        log(`Start WebSocketServerTransport at ${this.path}`);
 
         if (this._close) {
             return;
         }
 
         // Check that we have an active connection - the method will throw an error otherwise
-        this.manager.getActiveConnection();
+        this.manager.getActiveConnection(this.path);
 
         const onMessage = (message: any) => this.onmessage?.(message, {});
         const onError = (error: Error) => this.onerror?.(error);
@@ -45,7 +47,7 @@ export class WebSocketServerTransport implements Transport {
     }
 
     async close() {
-        log("Close WebSocketServerTransport");
+        log(`Close WebSocketServerTransport at ${path}`);
 
         this._close?.();
         this._close = undefined;
@@ -56,13 +58,13 @@ export class WebSocketServerTransport implements Transport {
      */
     async send(message: JSONRPCMessage, options?: TransportSendOptions): Promise<void> {
         try {
-            await this.manager.send({
+            await this.manager.send(this.path, {
                 ...message,
                 ...(options?.resumptionToken && { resumptionToken: options.resumptionToken }),
                 ...(options?.relatedRequestId && { relatedRequestId: options.relatedRequestId }),
             });
         } catch (error) {
-            log("WebSocket server manager error:", error);
+            log(`WebSocket server manager error at ${this.path}:`, error);
             log("Message:", message);
             log("Options:", options);
             throw error;
@@ -74,6 +76,6 @@ export class WebSocketServerTransport implements Transport {
      */
     setProtocolVersion(version: string): void {
         // Store protocol version if needed
-        log(`WebSocket transport protocol version set to: ${version}`);
+        log(`WebSocket transport protocol version set to ${version} at ${this.path}`);
     }
 }

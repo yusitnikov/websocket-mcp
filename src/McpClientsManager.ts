@@ -8,14 +8,28 @@ import { fileURLToPath } from "url";
 import { log } from "./utils.js";
 import { WebSocketServerManager } from "./WebSocketServerManager.ts";
 
-interface ServerConfig {
+interface BaseServerConfig {
     name: string;
-    type: "stdio" | "http" | "websocket";
-    command?: string;
-    args?: string[];
-    url?: string;
     enabled: boolean;
 }
+
+interface StdioServerConfig extends BaseServerConfig {
+    type: "stdio";
+    command: string;
+    args?: string[];
+}
+
+interface HttpServerConfig extends BaseServerConfig {
+    type: "http";
+    url: string;
+}
+
+interface WebSocketServerConfig extends BaseServerConfig {
+    type: "websocket";
+    path?: string;
+}
+
+type ServerConfig = StdioServerConfig | HttpServerConfig | WebSocketServerConfig;
 
 interface Config {
     servers: ServerConfig[];
@@ -72,10 +86,13 @@ export class McpClientsManager {
                 transport = new StreamableHTTPClientTransport(new URL(serverConfig.url));
                 break;
             case "websocket":
-                transport = new WebSocketServerTransport(this.webSocketServerManager);
+                // Default path to server name if not provided, then normalize to ensure it starts with /
+                const pathOrDefault = serverConfig.path || serverConfig.name;
+                const normalizedPath = pathOrDefault.startsWith('/') ? pathOrDefault : `/${pathOrDefault}`;
+                transport = new WebSocketServerTransport(this.webSocketServerManager, normalizedPath);
                 break;
             default:
-                throw new Error(`Unsupported server type: ${serverConfig.type}`);
+                throw new Error(`Unsupported server type: ${(serverConfig as any).type}`);
         }
 
         log("Initialized transport for", serverName);

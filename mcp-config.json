@@ -15,7 +15,7 @@
             "enabled": true
         },
         {
-            "name": "websocket-proxy",
+            "name": "demo",
             "type": "websocket",
             "enabled": true
         }

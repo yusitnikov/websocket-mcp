@@ -3,8 +3,13 @@ import { Server } from "http";
 import { log } from "./utils.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 
+interface Connection {
+    ws: WebSocket;
+    url: string;
+}
+
 export class WebSocketServerManager {
-    private readonly connections = new Set<WebSocket>();
+    private readonly connections = new Set<Connection>();
     private readonly wsServer: WebSocketServer;
 
     public readonly onClose = new Set<() => void>();
@@ -14,10 +19,12 @@ export class WebSocketServerManager {
     constructor(server: Server) {
         this.wsServer = new WebSocketServer({ server });
 
-        this.wsServer.on("connection", (ws) => {
-            this.connections.add(ws);
+        this.wsServer.on("connection", (ws, { url = "/" }) => {
+            const connection: Connection = { ws, url };
+            this.connections.add(connection);
 
-            log(`New WebSocket connection established. Total connections: ${this.connections.size}`);
+            log(`New WebSocket connection established at ${url}`);
+            this.logConnections();
 
             ws.on("message", (data) => {
                 const dataStr = data.toString();
@@ -36,10 +43,9 @@ export class WebSocketServerManager {
             });
 
             ws.on("close", (code, reason) => {
-                this.connections.delete(ws);
-                log(
-                    `WebSocket connection closed with code ${code}: ${reason.toString()}. Remaining connections: ${this.connections.size}`,
-                );
+                this.connections.delete(connection);
+                log(`WebSocket connection to ${url} closed with code ${code}: ${reason.toString()}.`);
+                this.logConnections();
 
                 // If this was the last connection
                 if (this.connections.size === 0) {
@@ -50,8 +56,8 @@ export class WebSocketServerManager {
             });
 
             ws.on("error", (error) => {
-                this.connections.delete(ws);
-                log(`WebSocket connection error:`, error);
+                this.connections.delete(connection);
+                log(`WebSocket connection error at ${url}:`, error);
                 this.handleError(error);
             });
         });
@@ -64,32 +70,41 @@ export class WebSocketServerManager {
         log("WebSocket server started");
     }
 
-    getActiveConnection() {
-        // Validate connection count on-demand
-        if (this.connections.size === 0) {
-            throw new McpError(ErrorCode.ConnectionClosed, "No browser tabs connected");
+    logConnections() {
+        log(`Total connections: ${this.connections.size}.`);
+        for (const { ws, url } of this.connections) {
+            log(`- ${url} (${ws.readyState})`);
+        }
+    }
+
+    getActiveConnection(path: string) {
+        // Filter connections by path
+        const pathConnections = Array.from(this.connections).filter((conn) => conn.url === path);
+
+        if (pathConnections.length === 0) {
+            throw new McpError(ErrorCode.ConnectionClosed, `No browser tabs connected to path: ${path}`);
         }
 
-        if (this.connections.size > 1) {
-            log(`Expected 1 browser connection, got ${this.connections.size}`);
-            for (const connection of this.connections) {
-                log(`- readyState: ${connection.readyState}`);
-            }
+        if (pathConnections.length > 1) {
+            log(`Expected 1 browser connection at ${path}, got ${pathConnections.length}`);
+            this.logConnections();
         }
 
-        return this.connections.values().next().value!;
+        return pathConnections[0].ws;
     }
 
     /**
-     * Sends a message to all connections
+     * Sends a message to connection on the specified path
      */
-    async send(message: any) {
-        const connection = this.getActiveConnection();
+    async send(path: string, message: any) {
+        const connection = this.getActiveConnection(path);
 
         try {
             connection.send(JSON.stringify(message));
         } catch (error) {
-            throw new Error(`Failed to send message: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(
+                `Failed to send message to path ${path}: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
     }
 
