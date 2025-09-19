@@ -10,7 +10,7 @@ export default defineConfig(() => ({
     cacheDir: '../../node_modules/.vite/packages/tab-sync',
     plugins: [
         nxViteTsPaths(),
-        nxCopyAssetsPlugin(['*.md']),
+        nxCopyAssetsPlugin(['README.md', '../../LICENSE.md']),
         dts({ entryRoot: 'src', tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'), pathsToAliases: false }),
     ],
     // Uncomment this if you are using workers.

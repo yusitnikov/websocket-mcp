@@ -1,7 +1,9 @@
 {
     "name": "tab-sync",
+    "description": "Browser tab synchronization system using SharedWorkers for coordinating multiple tabs",
     "version": "0.0.1",
-    "private": true,
+    "license": "MIT",
+    "author": "Yuri Sitnikov <https://github.com/yusitnikov>",
     "type": "module",
     "main": "./index.js",
     "types": "./index.d.ts",

@@ -1,7 +1,9 @@
 {
     "name": "@websocket-mcp/frontend",
+    "description": "WebSocket transport for browser-based MCP servers to connect to MCP proxy",
     "version": "0.0.1",
-    "private": true,
+    "license": "MIT",
+    "author": "Yuri Sitnikov <https://github.com/yusitnikov>",
     "type": "module",
     "main": "./index.js",
     "types": "./index.d.ts",

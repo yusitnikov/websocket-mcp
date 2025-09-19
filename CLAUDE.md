@@ -73,6 +73,14 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 - Tab info tracking with creation time, dynamic titles, and connection status
 - SharedWorker keeps running even when tabs are inactive, ensuring all tabs remain trackable by the sync system
 
+## Documentation Files
+
+Each package and app includes comprehensive documentation:
+
+- **README.md** files in each package/app - User-focused documentation with installation, configuration, and usage examples
+- **IMPLEMENTATION.md** files in packages - Developer-focused documentation with architecture details and design decisions
+- **CLAUDE.md** (this file) - Development guidance for Claude Code
+
 ## Configuration Files
 
 - `mcp-config.json` - Required configuration file for MCP server connections (referenced by `McpClientsManager`)
