@@ -18,9 +18,12 @@ The main orchestrator class that handles:
 - Per-request MCP Server and Client lifecycle management
 
 ### Configuration System (configs.ts)
-Provides two focused functions for configuration management:
-- `loadConfigs()` - Reads and validates `mcp-config.json`, filtering enabled servers
+Provides configuration management functions:
+- `loadConfigs()` - Reads and validates JSON config files, filtering enabled servers
 - `getProxyOptionsFromConfig()` - Converts configuration objects into `McpServerProxyOptions` with appropriate transport factories
+
+### CLI Interface (run.ts)
+Entry point that handles argument parsing and server instantiation. Supports both file-based and argument-based configuration with validation to ensure exactly one method is used.
 
 ### WebSocketServerManager
 Handles WebSocket connections from browsers at different URL paths, enabling browser-based MCP servers to connect to the proxy.

@@ -5,7 +5,7 @@
     "author": "Yuri Sitnikov <https://github.com/yusitnikov>",
     "type": "module",
     "scripts": {
-        "start": "NX_TUI=false nx run websocket-mcp-backend:start",
+        "start": "NX_TUI=false nx run websocket-mcp-backend:start --args='--config=mcp-config.json'",
         "build": "nx run-many --target=vite:build --exclude=demo",
         "demo": "nx run demo:serve",
         "graph": "nx graph"
