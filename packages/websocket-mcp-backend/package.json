@@ -1,0 +1,13 @@
+{
+    "name": "@websocket-mcp/backend",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "main": "./index.js",
+    "types": "./index.d.ts",
+    "bin": "./bin/run.js",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.16.0",
+        "ws": "^8.18.3"
+    }
+}

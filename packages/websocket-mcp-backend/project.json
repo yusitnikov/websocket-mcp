@@ -1,0 +1,17 @@
+{
+    "name": "websocket-mcp-backend",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "packages/websocket-mcp-backend/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project websocket-mcp-backend --web",
+    "targets": {
+        "start": {
+            "executor": "nx:run-commands",
+            "continuous": true,
+            "options": {
+                "command": "nodemon --exec \"node --import tsx\" packages/websocket-mcp-backend/src/bin/run.ts"
+            }
+        }
+    }
+}

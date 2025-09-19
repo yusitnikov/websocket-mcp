@@ -5,19 +5,22 @@
         "module": "ESNext",
         "lib": ["ES2022", "DOM", "DOM.Iterable"],
         "skipLibCheck": true,
-        /* Bundler mode */
         "moduleResolution": "bundler",
         "allowImportingTsExtensions": true,
         "verbatimModuleSyntax": false,
         "moduleDetection": "force",
         "noEmit": true,
-        /* Linting */
         "strict": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "erasableSyntaxOnly": false,
         "noFallthroughCasesInSwitch": true,
-        "noUncheckedSideEffectImports": true
-    },
-    "include": ["src"]
+        "noUncheckedSideEffectImports": true,
+        "baseUrl": ".",
+        "paths": {
+            "@websocket-mcp/backend": ["packages/websocket-mcp-backend/src/index.ts"],
+            "@websocket-mcp/frontend": ["packages/websocket-mcp-frontend/src/index.ts"],
+            "tab-sync": ["./packages/tab-sync/src/index.ts"]
+        }
+    }
 }

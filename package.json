@@ -4,26 +4,50 @@
     "version": "0.0.0",
     "type": "module",
     "scripts": {
-        "start": "nodemon --exec \"node --import tsx\" src/mcp-server.ts",
-        "build": "vite build",
-        "watch": "vite build --watch"
+        "start": "NX_TUI=false nx run websocket-mcp-backend:start",
+        "build": "nx run-many --target=vite:build --exclude=demo",
+        "demo": "nx run demo:serve",
+        "graph": "nx graph"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.16.0",
         "commander": "^14.0.1",
         "express": "^5.1.0",
+        "tslib": "^2.3.0",
         "ws": "^8.18.3",
         "zod": "^3.25.76"
     },
     "devDependencies": {
+        "@eslint/js": "^9.8.0",
+        "@nx/eslint": "21.5.2",
+        "@nx/eslint-plugin": "21.5.2",
+        "@nx/js": "21.5.2",
+        "@nx/vite": "21.5.2",
+        "@nx/web": "21.5.2",
+        "@swc-node/register": "~1.9.1",
+        "@swc/core": "~1.5.7",
+        "@swc/helpers": "~0.5.11",
         "@types/express": "^5.0.3",
         "@types/node": "^22.0.0",
         "@types/ws": "^8.18.1",
+        "@vitest/ui": "^3.0.0",
+        "ajv": "^8.0.0",
         "chrome-types": "^0.1.375",
+        "eslint": "^9.8.0",
+        "eslint-config-prettier": "^10.0.0",
+        "jiti": "2.4.2",
+        "jsdom": "~22.1.0",
+        "jsonc-eslint-parser": "^2.1.0",
         "nodemon": "^3.1.10",
+        "nx": "21.5.2",
         "prettier": "^3.6.2",
+        "swc-loader": "0.1.15",
         "tsx": "^4.20.5",
         "typescript": "~5.8.3",
-        "vite": "^7.0.4"
-    }
+        "typescript-eslint": "^8.40.0",
+        "vite": "^7.0.4",
+        "vite-plugin-dts": "~4.5.0",
+        "vitest": "^3.0.0"
+    },
+    "nx": {}
 }
