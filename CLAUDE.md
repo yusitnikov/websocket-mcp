@@ -9,7 +9,7 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 **Apps:**
 - `apps/demo/` - Browser demo that creates MCP servers in SharedWorkers and connects them to the proxy
 
-**Packages:**
+**Packages (follow NX lib structure: `src/index.ts` exports from `src/lib/`):**
 - `packages/websocket-mcp-backend/` - HTTP proxy server that bridges MCP clients (like Claude) to external MCP servers via stdio, HTTP, or WebSocket
 - `packages/websocket-mcp-frontend/` - Provides `WebSocketClientTransport` for browser-based MCP servers to connect to the proxy
 - `packages/tab-sync/` - Provides `TabSyncClient` and `TabSyncServer` for coordinating multiple browser tabs through SharedWorkers
@@ -21,7 +21,6 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 - **CRITICAL**: If testing is needed, ask the user to do it instead
 - MCP proxy server entry point is `packages/websocket-mcp-backend/src/bin/run.ts`
 - **DO NOT** access or run files from `dist/` directory
-- **IMPORTANT**: always use the log function from utils.ts for any kind of logging, never use console.log and such.
 
 ## Architecture
 
