@@ -5,7 +5,7 @@
     "author": "Yuri Sitnikov <https://github.com/yusitnikov>",
     "type": "module",
     "scripts": {
-        "start": "NX_TUI=false nx run websocket-mcp-backend:start --args='--config=mcp-config.json'",
+        "start": "NX_TUI=false nx run websocket-mcp:start --args='--config=mcp-config.json'",
         "build": "nx run-many --target=vite:build --exclude=demo",
         "demo": "nx run demo:serve",
         "graph": "nx graph"
@@ -49,6 +49,5 @@
         "vite": "^7.0.4",
         "vite-plugin-dts": "~4.5.0",
         "vitest": "^3.0.0"
-    },
-    "nx": {}
+    }
 }

@@ -3,6 +3,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 // noinspection ES6PreferShortImport
 import { WebSocketServerTransport } from "./WebSocketServerTransport";
 import fs from "fs";
+// noinspection ES6PreferShortImport
 import { McpServerProxy, McpServerProxyOptions } from "./McpServerProxy.ts";
 
 interface BaseServerConfig {

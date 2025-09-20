@@ -11,24 +11,31 @@ This approach might seem inefficient at first, but it's actually quite elegant. 
 The system consists of a modular architecture with clear separation of concerns:
 
 ### McpServerProxy
+
 The main orchestrator class that handles:
+
 - Express.js HTTP server setup and management
 - WebSocket server initialization through `WebSocketServerManager`
 - Request routing and proxy endpoint creation
 - Per-request MCP Server and Client lifecycle management
 
 ### Configuration System (configs.ts)
+
 Provides configuration management functions:
+
 - `loadConfigs()` - Reads and validates JSON config files, filtering enabled servers
 - `getProxyOptionsFromConfig()` - Converts configuration objects into `McpServerProxyOptions` with appropriate transport factories
 
 ### CLI Interface (run.ts)
+
 Entry point that handles argument parsing and server instantiation. Supports both file-based and argument-based configuration with validation to ensure exactly one method is used.
 
 ### WebSocketServerManager
+
 Handles WebSocket connections from browsers at different URL paths, enabling browser-based MCP servers to connect to the proxy.
 
 ### WebSocketServerTransport
+
 Acts as a bridge between WebSocket connections and the MCP protocol, allowing seamless integration of browser-based servers into the proxy ecosystem.
 
 ## WebSocket Handling

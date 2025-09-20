@@ -18,9 +18,9 @@
         "noUncheckedSideEffectImports": true,
         "baseUrl": ".",
         "paths": {
-            "@websocket-mcp/backend": ["packages/websocket-mcp-backend/src/index.ts"],
             "@websocket-mcp/frontend": ["packages/websocket-mcp-frontend/src/index.ts"],
-            "tab-sync": ["./packages/tab-sync/src/index.ts"]
+            "tab-sync": ["./packages/tab-sync/src/index.ts"],
+            "websocket-mcp": ["packages/websocket-mcp/src/index.ts"]
         }
     }
 }

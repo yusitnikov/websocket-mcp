@@ -1,5 +1,5 @@
 {
-    "name": "@websocket-mcp/backend",
+    "name": "websocket-mcp",
     "description": "HTTP proxy server that bridges MCP clients to multiple MCP servers via stdio, HTTP, or WebSocket",
     "version": "0.0.1",
     "license": "MIT",

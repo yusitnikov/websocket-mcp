@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+// noinspection ES6PreferShortImport
 import { McpServerProxy } from "../lib/McpServerProxy.ts";
 import { getProxyOptionsFromConfig, loadConfigs } from "../lib/configs.ts";
 

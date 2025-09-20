@@ -7,7 +7,7 @@ import { nxCopyAssetsPlugin } from "@nx/vite/plugins/nx-copy-assets.plugin";
 
 export default defineConfig(() => ({
     root: __dirname,
-    cacheDir: "../../node_modules/.vite/packages/websocket-mcp-backend",
+    cacheDir: "../../node_modules/.vite/packages/websocket-mcp",
     plugins: [
         nxViteTsPaths(),
         nxCopyAssetsPlugin(["README.md", "../../LICENSE.md"]),
@@ -16,7 +16,7 @@ export default defineConfig(() => ({
     // Configuration for building your library.
     // See: https://vitejs.dev/guide/build.html#library-mode
     build: {
-        outDir: "../../dist/packages/websocket-mcp-backend",
+        outDir: "../../dist/packages/websocket-mcp",
         emptyOutDir: true,
         reportCompressedSize: true,
         commonjsOptions: {
@@ -28,14 +28,23 @@ export default defineConfig(() => ({
                 index: "src/index.ts",
                 "bin/run": "src/bin/run.ts",
             },
-            name: "websocket-mcp-backend",
+            name: "websocket-mcp",
             // Change this to the formats you want to support.
             // Don't forget to update your package.json as well.
             formats: ["es" as const],
         },
         rollupOptions: {
             // External packages that should not be bundled into your library.
-            external: [/^@modelcontextprotocol\/sdk(\/.+)?$/, "ws", /^node:/],
+            external: [
+                /^@modelcontextprotocol\/sdk(\/.+)?$/,
+                "ws",
+                "path",
+                "fs",
+                "http",
+                "express",
+                "commander",
+                /^node:/,
+            ],
         },
     },
 }));
