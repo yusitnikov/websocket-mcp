@@ -12,8 +12,9 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 
 **Packages (follow NX lib structure: `src/index.ts` exports from `src/lib/`):**
 
-- `packages/websocket-mcp/` - HTTP proxy server that bridges MCP clients (like Claude) to external MCP servers via stdio, HTTP, or WebSocket
-- `packages/websocket-mcp-frontend/` - Provides `WebSocketClientTransport` for browser-based MCP servers to connect to the proxy
+- `packages/websocket-mcp/` - Complete MCP proxy system with both server and frontend components
+  - **Server**: HTTP proxy server that bridges MCP clients (like Claude) to external MCP servers via stdio, HTTP, or WebSocket
+  - **Frontend**: Browser-side components (`src/lib/frontend/`) that provide `WebSocketClientTransport` for browser-based MCP servers to connect to the proxy
 - `packages/tab-sync/` - Provides `TabSyncClient` and `TabSyncServer` for coordinating multiple browser tabs through SharedWorkers
 
 ## Development Notes
@@ -61,11 +62,13 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 - Tab synchronization system shows which tabs are connected to the same SharedWorker
 - Proxy can route tool requests from MCP clients (like Claude) to this browser-defined MCP server
 
-### WebSocket MCP Frontend (`packages/websocket-mcp-frontend/`)
+### WebSocket MCP Frontend (`packages/websocket-mcp/src/lib/frontend/`)
 
-**Purpose**: Enables browser-based MCP servers to connect to the proxy server
+**Purpose**: Browser-side components within the main websocket-mcp package that enable browser-based MCP servers to connect to the proxy server
 
 **Key Export**: `WebSocketClientTransport` - MCP transport implementation that connects via WebSocket to the proxy server
+
+**Import Path**: Browser code should import from `websocket-mcp/frontend` (not from the package root) to maintain clear separation between server and browser components
 
 ### Tab Sync (`packages/tab-sync/`)
 

@@ -3,7 +3,7 @@
 import { TabSyncServer } from "tab-sync";
 import { McpServerPingData } from "./types.ts";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { WebSocketClientTransport } from "@websocket-mcp/frontend";
+import { WebSocketClientTransport } from "websocket-mcp/frontend";
 import {
     CallToolRequestSchema,
     ListResourcesRequestSchema,
