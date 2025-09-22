@@ -19,6 +19,9 @@
     "bin": "./bin/run.js",
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.16.0",
+        "commander": "^14.0.1",
+        "express": "^5.1.0",
+        "tslib": "^2.3.0",
         "ws": "^8.18.3"
     }
 }
