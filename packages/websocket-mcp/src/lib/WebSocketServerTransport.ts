@@ -1,7 +1,6 @@
 import { Transport, TransportSendOptions } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { JSONRPCMessage, MessageExtraInfo } from "@modelcontextprotocol/sdk/types.js";
 import { WebSocketServerManager } from "./WebSocketServerManager";
-import path from "path";
 
 /**
  * WebSocket server transport for Model Context Protocol.
@@ -46,7 +45,7 @@ export class WebSocketServerTransport implements Transport {
     }
 
     async close() {
-        console.debug(`Close WebSocketServerTransport at ${path}`);
+        console.debug(`Close WebSocketServerTransport at ${this.path}`);
 
         this._close?.();
         this._close = undefined;
