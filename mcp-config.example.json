@@ -8,13 +8,6 @@
             "enabled": true
         },
         {
-            "name": "mcp-test-stdio",
-            "type": "stdio",
-            "command": "node",
-            "args": ["/Users/chameleon/WebstormProjects/mcp-test/archive/mcp-server.cjs"],
-            "enabled": true
-        },
-        {
             "name": "demo",
             "type": "websocket",
             "enabled": true
