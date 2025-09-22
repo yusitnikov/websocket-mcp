@@ -1,5 +1,5 @@
 {
-    "name": "tab-sync",
+    "name": "@sitnikov/tab-sync",
     "description": "Browser tab synchronization system using SharedWorkers for coordinating multiple tabs",
     "version": "1.0.0",
     "license": "MIT",

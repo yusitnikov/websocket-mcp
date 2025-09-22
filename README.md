@@ -19,7 +19,7 @@ npm install websocket-mcp
 Library for coordinating browser tabs using SharedWorkers.
 
 ```bash
-npm install tab-sync
+npm install @sitnikov/tab-sync
 ```
 
 [📖 Documentation](packages/tab-sync/README.md)

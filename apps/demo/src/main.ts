@@ -1,5 +1,5 @@
 import { McpServerPingData } from "./types.ts";
-import { TabSyncClient } from "tab-sync";
+import { TabSyncClient } from "@sitnikov/tab-sync";
 
 // DOM elements
 const swStatus = document.getElementById("sw-status") as HTMLDivElement;

@@ -5,7 +5,7 @@ A library for coordinating browser tabs using SharedWorkers. Tabs can discover e
 ## Installation
 
 ```bash
-npm install tab-sync
+npm install @sitnikov/tab-sync
 ```
 
 ## Quick Start
@@ -14,10 +14,10 @@ npm install tab-sync
 
 ```javascript
 // worker.js
-import { TabSyncServer } from 'tab-sync';
+import { TabSyncServer } from "@sitnikov/tab-sync";
 
 const server = new TabSyncServer({
-  scope: self,  // SharedWorkerGlobalScope
+    scope: self, // SharedWorkerGlobalScope
 });
 
 server.start();
@@ -27,16 +27,16 @@ server.start();
 
 ```javascript
 // main.js
-import { TabSyncClient } from 'tab-sync';
+import { TabSyncClient } from "@sitnikov/tab-sync";
 
 const client = new TabSyncClient({
-  sharedWorkerPath: '/worker.js'
+    sharedWorkerPath: "/worker.js",
 });
 
 // Listen for tab updates
 client.onTabsChanged = (tabs) => {
-  console.log('Connected tabs:', tabs);
-  // Each tab has: { id, createdAt, dynamicInfo: { title, url } }
+    console.log("Connected tabs:", tabs);
+    // Each tab has: { id, createdAt, dynamicInfo: { title, url } }
 };
 
 client.start();
@@ -48,11 +48,12 @@ client.start();
 
 ```javascript
 const client = new TabSyncClient({
-  sharedWorkerPath: '/worker.js',           // Required: Path to SharedWorker script
-  sharedWorkerOptions: {                    // Optional: SharedWorker options
-    name: 'My Tab Sync',
-    type: 'module'
-  }
+    sharedWorkerPath: "/worker.js", // Required: Path to SharedWorker script
+    sharedWorkerOptions: {
+        // Optional: SharedWorker options
+        name: "My Tab Sync",
+        type: "module",
+    },
 });
 ```
 
@@ -60,11 +61,12 @@ const client = new TabSyncClient({
 
 ```javascript
 const server = new TabSyncServer({
-  scope: self,                              // Required: SharedWorkerGlobalScope
-  getExtraPingData: () => ({               // Optional: Extra data to broadcast
-    serverStatus: 'connected',
-    timestamp: Date.now()
-  })
+    scope: self, // Required: SharedWorkerGlobalScope
+    getExtraPingData: () => ({
+        // Optional: Extra data to broadcast
+        serverStatus: "connected",
+        timestamp: Date.now(),
+    }),
 });
 ```
 
@@ -73,24 +75,29 @@ const server = new TabSyncServer({
 ### TabSyncClient
 
 #### Properties
+
 - `tabs: TabInfo[]` - Array of all connected tabs (including current)
 - `myTabInfo: TabInfo` - Information about the current tab
 
 #### Methods
+
 - `start(): void` - Connect to SharedWorker and begin synchronization
 - `sendMessageToServer<PayloadT, ResponseT>(messageType: string, payload: PayloadT, timeout?: number): AbortablePromise<ResponseT>` - Send custom message to SharedWorker server
 - `onCustomMessage<PayloadT, ResponseT>(messageType: string, handler: MessageHandler<undefined, PayloadT, ResponseT>): void` - Register handler for custom messages from server
 
 #### Events
+
 - `onTabsChanged?: (tabs: TabInfo[]) => void` - Called when tabs change
 - `onExtraPingDataChanged?: (data: T) => void` - Called when extra data changes
 
 ### TabSyncServer
 
 #### Properties
+
 - `activeTabs: TabInfo[]` - Array of currently active tabs (within 5 second timeout)
 
 #### Methods
+
 - `start(): void` - Begin listening for tab connections
 - `pingAllTabs(): void` - Manually ping all connected tabs
 - `sendMessageToTab<PayloadT, ResponseT>(tabId: number, messageType: string, payload: PayloadT, timeout?: number): AbortablePromise<ResponseT>` - Send custom message to specific tab
@@ -100,12 +107,12 @@ const server = new TabSyncServer({
 
 ```typescript
 interface TabInfo {
-  id: number;                    // Unique tab identifier
-  createdAt: number;            // Tab creation timestamp
-  dynamicInfo: {
-    title: string;              // Current page title
-    url: string;                // Current page URL
-  };
+    id: number; // Unique tab identifier
+    createdAt: number; // Tab creation timestamp
+    dynamicInfo: {
+        title: string; // Current page title
+        url: string; // Current page URL
+    };
 }
 ```
 
@@ -116,11 +123,9 @@ interface TabInfo {
 ```javascript
 // Display connected tabs
 client.onTabsChanged = (tabs) => {
-  const tabList = tabs.map(tab =>
-    `Tab ${tab.id}: ${tab.dynamicInfo.title}`
-  ).join('\n');
+    const tabList = tabs.map((tab) => `Tab ${tab.id}: ${tab.dynamicInfo.title}`).join("\n");
 
-  document.getElementById('tabs').textContent = tabList;
+    document.getElementById("tabs").textContent = tabList;
 };
 ```
 
@@ -129,17 +134,17 @@ client.onTabsChanged = (tabs) => {
 ```javascript
 // SharedWorker with extra data
 const server = new TabSyncServer({
-  scope: self,
-  getExtraPingData: () => ({
-    connectionStatus: wsConnected ? 'online' : 'offline',
-    messageCount: messageQueue.length
-  })
+    scope: self,
+    getExtraPingData: () => ({
+        connectionStatus: wsConnected ? "online" : "offline",
+        messageCount: messageQueue.length,
+    }),
 });
 
 // Browser tab receiving extra data
 client.onExtraPingDataChanged = (data) => {
-  document.getElementById('status').textContent = data.connectionStatus;
-  document.getElementById('messages').textContent = data.messageCount;
+    document.getElementById("status").textContent = data.connectionStatus;
+    document.getElementById("messages").textContent = data.messageCount;
 };
 ```
 
@@ -149,28 +154,28 @@ Tabs can send typed messages to the SharedWorker and receive responses asynchron
 
 ```javascript
 // SharedWorker handles requests from tabs
-server.onCustomMessage('getUserPrefs', async (userId, senderTab) => {
-  const prefs = await loadUserPreferences(userId);
-  return prefs;
+server.onCustomMessage("getUserPrefs", async (userId, senderTab) => {
+    const prefs = await loadUserPreferences(userId);
+    return prefs;
 });
 
 // Tab sends message to SharedWorker and waits for response
-const userPrefs = await client.sendMessageToServer('getUserPrefs', currentUserId);
+const userPrefs = await client.sendMessageToServer("getUserPrefs", currentUserId);
 ```
 
 The SharedWorker can also send messages to specific tabs and wait for their responses. This is useful for commanding tabs to perform UI actions or asking them about their current state.
 
 ```javascript
 // SharedWorker asks a specific tab to show a notification
-const result = await server.sendMessageToTab(tabId, 'showNotification', {
-  title: 'Hello',
-  message: 'This is from another tab'
+const result = await server.sendMessageToTab(tabId, "showNotification", {
+    title: "Hello",
+    message: "This is from another tab",
 });
 
 // Tab handles the notification request
-client.onCustomMessage('showNotification', async (notification) => {
-  new Notification(notification.title, { body: notification.message });
-  return { shown: true, timestamp: Date.now() };
+client.onCustomMessage("showNotification", async (notification) => {
+    new Notification(notification.title, { body: notification.message });
+    return { shown: true, timestamp: Date.now() };
 });
 ```
 
@@ -179,15 +184,15 @@ client.onCustomMessage('showNotification', async (notification) => {
 ```javascript
 // Coordinate with WebSocket connections
 const server = new TabSyncServer({
-  scope: self,
-  getExtraPingData: () => ({
-    wsConnected: webSocket?.readyState === WebSocket.OPEN
-  })
+    scope: self,
+    getExtraPingData: () => ({
+        wsConnected: webSocket?.readyState === WebSocket.OPEN,
+    }),
 });
 
 // Update tabs when WebSocket status changes
-webSocket.addEventListener('open', () => server.pingAllTabs());
-webSocket.addEventListener('close', () => server.pingAllTabs());
+webSocket.addEventListener("open", () => server.pingAllTabs());
+webSocket.addEventListener("close", () => server.pingAllTabs());
 ```
 
 ## Features

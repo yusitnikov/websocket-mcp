@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { TabSyncServer } from "tab-sync";
+import { TabSyncServer } from "@sitnikov/tab-sync";
 import { McpServerPingData } from "./types.ts";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { WebSocketClientTransport } from "websocket-mcp/frontend";
