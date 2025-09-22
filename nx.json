@@ -1,5 +1,8 @@
 {
     "$schema": "./node_modules/nx/schemas/nx-schema.json",
+    "release": {
+        "projectsRelationship": "independent"
+    },
     "targetDefaults": {
         "build": {
             "outputs": ["{projectRoot}/dist"],
