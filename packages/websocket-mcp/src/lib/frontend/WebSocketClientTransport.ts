@@ -1,6 +1,6 @@
 import { Transport, TransportSendOptions } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ErrorCode, JSONRPCMessage, McpError, MessageExtraInfo } from "@modelcontextprotocol/sdk/types.js";
-import { AbortablePromise, sleep } from "./utils";
+import { AbortablePromise, sleep } from "utils";
 
 export interface WebSocketClientTransportOptions {
     url: string;
