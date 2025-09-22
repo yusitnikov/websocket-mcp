@@ -78,8 +78,18 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 
 - `TabSyncClient` - Browser tab component that connects to SharedWorker and receives tab updates
 - `TabSyncServer` - SharedWorker component that manages connected tabs and broadcasts changes
+- `TabSyncBase` - Abstract base class providing shared messaging functionality
 - Tab info tracking with creation time, dynamic titles, and connection status
+- Bidirectional custom messaging with typed payloads and async responses
 - SharedWorker keeps running even when tabs are inactive, ensuring all tabs remain trackable by the sync system
+
+**Custom Messaging Features**:
+
+- Tabs can send typed messages to SharedWorker and await responses
+- SharedWorker can send commands to specific tabs and receive confirmations
+- Message handlers support both sync and async responses
+- Built-in timeout handling and resource cleanup via AbortablePromise
+- Type-safe message routing by message type strings
 
 ## Documentation Files
 

@@ -8,7 +8,7 @@ export class AbortablePromise<T> extends Promise<T> {
         callback: (
             resolve: (value: T | PromiseLike<T>) => void,
             reject: (reason?: any) => void,
-            signal: AbortSignal,
+            abortController: AbortController,
         ) => void,
     ) {
         const controller = new AbortController();
@@ -20,7 +20,7 @@ export class AbortablePromise<T> extends Promise<T> {
                 return;
             }
 
-            callback(resolve, reject, signal);
+            callback(resolve, reject, controller);
 
             signal.addEventListener("abort", () => reject(signal.reason), { once: true });
         });

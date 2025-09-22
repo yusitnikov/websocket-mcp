@@ -22,6 +22,7 @@ This demo showcases the core functionality of the MCP proxy system by creating a
 The browser-based MCP server implements these tools:
 - `demo_ping` - Simple ping tool that echoes back a message with server identification
 - `get_tabs` - Returns detailed information about all connected browser tabs (ID and title)
+- `confirm` - Demonstrates bidirectional messaging by showing confirmation dialogs in specific browser tabs
 
 ### MCP Resources Provided
 The demo also implements MCP resources:
@@ -32,6 +33,15 @@ The demo also implements MCP resources:
 - Shows which tabs are connected to the same SharedWorker
 - Tracks tab creation time, dynamic titles, and connection status
 - Demonstrates real-time coordination between multiple browser instances
+- Implements custom messaging between SharedWorker and browser tabs with typed responses
+
+### Bidirectional Messaging Demo
+The `confirm` tool showcases the custom messaging capabilities:
+- **MCP Client Request**: External client calls the `confirm` tool with a message and target tab ID
+- **SharedWorker Processing**: SharedWorker receives the request and sends a custom message to the specified tab
+- **Tab Interaction**: Target tab shows a browser confirmation dialog to the user
+- **Response Chain**: User's choice (OK/Cancel) flows back through tab → SharedWorker → MCP client
+- **Error Handling**: Demonstrates timeout behavior and tab-not-found scenarios
 
 ## How It Works
 

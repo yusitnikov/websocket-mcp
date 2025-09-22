@@ -52,7 +52,7 @@ export class WebSocketClientTransport implements Transport {
     private connect() {
         console.log("Starting to connect!");
 
-        this.connectPromise = new AbortablePromise<void>((resolve, reject, signal) => {
+        this.connectPromise = new AbortablePromise<void>((resolve, reject, { signal }) => {
             (async () => {
                 try {
                     for (let attempt = 1; !signal.aborted; attempt++) {

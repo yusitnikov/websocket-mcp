@@ -57,6 +57,12 @@ tabSyncClient.onExtraPingDataChanged = ({ connected }) => {
     }
 };
 
+tabSyncClient.onCustomMessage<string, boolean>("confirm", (message) => {
+    alert(message);
+    return new Promise(() => {});
+    // return confirm(message);
+});
+
 try {
     tabSyncClient.start();
 

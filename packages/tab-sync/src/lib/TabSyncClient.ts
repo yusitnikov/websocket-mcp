@@ -1,5 +1,7 @@
 import { TabToWorkerEvent, WorkerToTabEvent } from "./events.ts";
 import { TabDynamicInfo, TabInfo } from "./tabInfo.ts";
+import { AbortablePromise } from "utils";
+import { TabSyncBase } from "./TabSyncBase.ts";
 
 // @ts-ignore
 interface TabSyncClientOptions<ExtraPingDataT = undefined> {
@@ -7,7 +9,7 @@ interface TabSyncClientOptions<ExtraPingDataT = undefined> {
     sharedWorkerOptions?: WorkerOptions;
 }
 
-export class TabSyncClient<ExtraPingDataT = undefined> {
+export class TabSyncClient<ExtraPingDataT = undefined> extends TabSyncBase<undefined> {
     private sharedWorker: SharedWorker | undefined;
 
     private readonly startTime: number;
@@ -21,6 +23,7 @@ export class TabSyncClient<ExtraPingDataT = undefined> {
     // endregion
 
     constructor(private readonly options: TabSyncClientOptions<ExtraPingDataT>) {
+        super();
         this.startTime = Date.now();
     }
 
@@ -53,7 +56,7 @@ export class TabSyncClient<ExtraPingDataT = undefined> {
             ...this.options.sharedWorkerOptions,
         });
 
-        this.sharedWorker.port.addEventListener("message", (event) => {
+        this.sharedWorker.port.addEventListener("message", async (event) => {
             const data = event.data as WorkerToTabEvent<ExtraPingDataT>;
             console.debug("Message from the shared worker:", data);
 
@@ -79,6 +82,15 @@ export class TabSyncClient<ExtraPingDataT = undefined> {
                     }
                     break;
 
+                case "custom_message":
+                    const response = await this.handleCustomMessage(data, undefined);
+                    this.sendMessage(response);
+                    break;
+
+                case "custom_message_response":
+                    this.handleCustomMessageResponse(data);
+                    break;
+
                 default:
                     console.warn("Unknown message type:", (data as any).type);
                     break;
@@ -90,5 +102,22 @@ export class TabSyncClient<ExtraPingDataT = undefined> {
         window.addEventListener("beforeunload", () => this.sendMessage({ type: "bye" }));
 
         this.onTabsChanged?.(this.tabs);
+    }
+
+    sendMessageToServer<PayloadT, ResponseT>(
+        messageType: string,
+        payload: PayloadT,
+        timeout: number = this.defaultTimeout,
+    ): AbortablePromise<ResponseT> {
+        const messageId = this.generateMessageId();
+
+        this.sendMessage({
+            type: "custom_message",
+            messageId,
+            messageType,
+            payload,
+        });
+
+        return this.waitForCustomMessageResponse<ResponseT>(messageId, timeout);
     }
 }

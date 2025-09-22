@@ -22,6 +22,16 @@ Each tab maintains both static information (like its unique ID and creation time
 
 The system also supports broadcasting arbitrary extra data from the SharedWorker to all tabs through generic type support. This is useful for sharing connection status, server state, or other application-specific information that all tabs need to know about.
 
+## Custom Messaging Architecture
+
+Beyond the basic ping/pong coordination, the system supports bidirectional custom messaging between tabs and the SharedWorker. This uses a message ID correlation system where each message gets a unique identifier, and responses are matched back to the original request using that ID.
+
+Messages can flow in both directions: tabs can send requests to the SharedWorker, and the SharedWorker can send commands to specific tabs. All messages return AbortablePromises that support timeout handling and cancellation. If a message doesn't receive a response within the timeout period (default 5 seconds), the promise rejects with a timeout error.
+
+The SharedWorker maintains a registry of message handlers, where each handler is associated with a specific message type string. When a message arrives, the system looks up the appropriate handler and calls it with the message payload. The handler can return either a synchronous value or a Promise, and the system automatically sends the response back to the sender.
+
+This architecture enables request-response patterns, command dispatching, and cross-tab coordination while maintaining type safety and proper error handling.
+
 ## Design Benefits
 
-This design provides several important benefits. The SharedWorker persists even when individual tabs close, maintaining coordination state across the entire browser session. Changes propagate immediately without polling or manual triggers. The system only broadcasts when actual changes occur, keeping network traffic minimal. And the generic type support makes it extensible for application-specific coordination needs.
+This design provides several important benefits. The SharedWorker persists even when individual tabs close, maintaining coordination state across the entire browser session. Changes propagate immediately without polling or manual triggers. The system only broadcasts when actual changes occur, keeping network traffic minimal. The generic type support makes it extensible for application-specific coordination needs. And the custom messaging system enables complex cross-tab workflows while maintaining clean separation of concerns.

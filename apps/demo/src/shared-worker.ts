@@ -62,6 +62,25 @@ mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
                     properties: {},
                 },
             },
+            {
+                name: "confirm",
+                description: "Show a confirmation dialog to a specific tab",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        message: {
+                            type: "string",
+                            description: "Message to show in the confirmation dialog",
+                        },
+                        tabId: {
+                            type: "number",
+                            description:
+                                "ID of the tab to show the confirmation dialog to. You can know the list of available tabs by calling the get_tabs tool.",
+                        },
+                    },
+                    required: ["message", "tabId"],
+                },
+            },
         ],
     };
 });
@@ -95,6 +114,34 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
                     },
                 ],
             };
+        }
+        case "confirm": {
+            const message = params.arguments?.message as string;
+            const tabId = params.arguments?.tabId as number;
+
+            try {
+                const result = await tabSyncServer.sendMessageToTab<string, boolean>(tabId, "confirm", message, 10000);
+
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: result ? "Confirmed" : "Rejected",
+                        },
+                    ],
+                };
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Error showing confirmation to tab ${tabId}: ${errorMessage}`,
+                        },
+                    ],
+                    isError: true,
+                };
+            }
         }
     }
 

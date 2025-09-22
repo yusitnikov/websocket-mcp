@@ -1,18 +1,21 @@
 /// <reference lib="webworker" />
 
-import { TabDynamicInfo, TabInfo } from "./tabInfo.ts";
+import { PartialTabInfo, TabInfo } from "./tabInfo.ts";
 import { TabToWorkerEvent, WorkerToTabEvent } from "./events.ts";
+import { AbortablePromise } from "utils";
+import { TabSyncBase } from "./TabSyncBase.ts";
 
 interface TabSyncServerOptions<ExtraPingDataT = undefined> {
     scope: SharedWorkerGlobalScope;
     getExtraPingData?: () => ExtraPingDataT;
 }
 
-export class TabSyncServer<ExtraPingDataT = undefined> {
+export class TabSyncServer<ExtraPingDataT = undefined> extends TabSyncBase<PartialTabInfo> {
     private readonly scope: SharedWorkerGlobalScope;
     private readonly tabs: Tab[] = [];
 
     constructor(private readonly options: TabSyncServerOptions<ExtraPingDataT>) {
+        super();
         this.scope = options.scope;
     }
 
@@ -89,6 +92,15 @@ export class TabSyncServer<ExtraPingDataT = undefined> {
                         pingOtherTabs();
                         break;
 
+                    case "custom_message":
+                        const response = await this.handleCustomMessage(data, tab);
+                        this.sendMessage(tab, response);
+                        break;
+
+                    case "custom_message_response":
+                        this.handleCustomMessageResponse(data);
+                        break;
+
                     default:
                         console.warn("SharedWorker: Unknown message type:", (data as any).type);
                         break;
@@ -100,10 +112,39 @@ export class TabSyncServer<ExtraPingDataT = undefined> {
 
         this.scope.setInterval(() => this.pingAllTabs(), 2000);
     }
+
+    private getTabById(tabId: number) {
+        const tab = this.tabs.find(({ id }) => id === tabId);
+        if (!tab) {
+            throw new Error(
+                `Tab not found. Available tabs: ${this.activeTabs.map(({ id, dynamicInfo: { title } }) => `${id} ("${title}")`).join(", ")}`,
+            );
+        }
+        return tab;
+    }
+
+    sendMessageToTab<PayloadT, ResponseT>(
+        tabId: number,
+        messageType: string,
+        payload: PayloadT,
+        timeout: number = this.defaultTimeout,
+    ): AbortablePromise<ResponseT> {
+        const targetTab = this.getTabById(tabId);
+
+        const messageId = this.generateMessageId();
+
+        this.sendMessage(targetTab, {
+            type: "custom_message",
+            messageId,
+            messageType,
+            payload,
+        });
+
+        return this.waitForCustomMessageResponse<ResponseT>(messageId, timeout);
+    }
 }
 
-interface Tab extends Omit<TabInfo, "dynamicInfo"> {
+interface Tab extends PartialTabInfo {
     port: MessagePort;
-    dynamicInfo?: TabDynamicInfo;
     lastPongTime?: number;
 }

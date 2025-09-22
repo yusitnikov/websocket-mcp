@@ -8,3 +8,7 @@ export interface TabInfo {
     createdAt: number;
     dynamicInfo: TabDynamicInfo;
 }
+
+export interface PartialTabInfo extends Omit<TabInfo, "dynamicInfo"> {
+    dynamicInfo?: TabDynamicInfo;
+}

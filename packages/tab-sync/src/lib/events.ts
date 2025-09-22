@@ -17,6 +17,22 @@ export interface ByeEvent {
     type: "bye";
 }
 
-export type WorkerToTabEvent<ExtraPingDataT = undefined> = PingEvent<ExtraPingDataT>;
+export interface CustomMessageEvent<PayloadT> {
+    type: "custom_message";
+    messageId: number;
+    messageType: string;
+    payload: PayloadT;
+}
 
-export type TabToWorkerEvent = PongEvent | ByeEvent;
+export interface CustomMessageResponseEvent<ResponseT> {
+    type: "custom_message_response";
+    messageId: number;
+    payload: ResponseT | Error;
+}
+
+export type WorkerToTabEvent<ExtraPingDataT = undefined> =
+    | PingEvent<ExtraPingDataT>
+    | CustomMessageEvent<unknown>
+    | CustomMessageResponseEvent<unknown>;
+
+export type TabToWorkerEvent = PongEvent | ByeEvent | CustomMessageEvent<unknown> | CustomMessageResponseEvent<unknown>;
