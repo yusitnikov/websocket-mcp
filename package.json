@@ -3,6 +3,14 @@
     "version": "0.0.0",
     "license": "MIT",
     "author": "Yuri Sitnikov <https://github.com/yusitnikov>",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yusitnikov/websocket-mcp.git"
+    },
+    "homepage": "https://github.com/yusitnikov/websocket-mcp",
+    "bugs": {
+        "url": "https://github.com/yusitnikov/websocket-mcp/issues"
+    },
     "type": "module",
     "scripts": {
         "start": "NX_TUI=false nx run websocket-mcp:start --args='--config=mcp-config.json'",

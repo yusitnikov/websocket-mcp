@@ -4,6 +4,15 @@
     "version": "0.0.1",
     "license": "MIT",
     "author": "Yuri Sitnikov <https://github.com/yusitnikov>",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yusitnikov/websocket-mcp.git",
+        "directory": "packages/tab-sync"
+    },
+    "homepage": "https://github.com/yusitnikov/websocket-mcp/tree/main/packages/tab-sync",
+    "bugs": {
+        "url": "https://github.com/yusitnikov/websocket-mcp/issues"
+    },
     "type": "module",
     "main": "./index.js",
     "types": "./index.d.ts",
