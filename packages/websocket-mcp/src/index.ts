@@ -1,3 +1,3 @@
-export * from "./lib/McpServerProxy.ts";
-export * from "./lib/WebSocketServerManager";
-export * from "./lib/WebSocketServerTransport";
+export * from "./McpServerProxy.ts";
+export * from "./WebSocketServerManager";
+export * from "./WebSocketServerTransport";

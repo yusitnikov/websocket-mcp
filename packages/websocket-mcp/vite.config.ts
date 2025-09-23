@@ -26,8 +26,8 @@ export default defineConfig(() => ({
             // Could also be a dictionary or array of multiple entry points.
             entry: {
                 index: "src/index.ts",
-                frontend: "src/lib/frontend/index.ts",
-                "bin/run": "src/bin/run.ts",
+                frontend: "src/frontend/index.ts",
+                "bin/run": "bin/run.ts",
             },
             name: "websocket-mcp",
             // Change this to the formats you want to support.

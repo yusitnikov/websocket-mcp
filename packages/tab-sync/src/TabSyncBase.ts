@@ -1,6 +1,6 @@
 import { CustomMessageEvent, CustomMessageResponseEvent } from "./events.ts";
 import { AbortablePromise } from "utils";
-import { TimeoutError, NoHandlerError } from "../errors.ts";
+import { TimeoutError, NoHandlerError } from "./errors.ts";
 import { PartialTabInfo } from "./tabInfo.ts";
 
 let autoId = 0;

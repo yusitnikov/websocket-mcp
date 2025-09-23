@@ -9,12 +9,9 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 **Apps:**
 
 - `apps/demo/` - Browser demo that creates MCP servers in SharedWorkers and connects them to the proxy
-
-**Packages (follow NX lib structure: `src/index.ts` exports from `src/lib/`):**
-
 - `packages/websocket-mcp/` - Complete MCP proxy system with both server and frontend components
-  - **Server**: HTTP proxy server that bridges MCP clients (like Claude) to external MCP servers via stdio, HTTP, or WebSocket
-  - **Frontend**: Browser-side components (`src/lib/frontend/`) that provide `WebSocketClientTransport` for browser-based MCP servers to connect to the proxy
+    - **Server**: HTTP proxy server that bridges MCP clients (like Claude) to external MCP servers via stdio, HTTP, or WebSocket
+    - **Frontend**: Browser-side components (`src/frontend/`) that provide `WebSocketClientTransport` for browser-based MCP servers to connect to the proxy
 - `packages/tab-sync/` - Provides `TabSyncClient` and `TabSyncServer` for coordinating multiple browser tabs through SharedWorkers
 
 ## Development Notes
@@ -22,7 +19,7 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 - **CRITICAL**: NEVER execute any commands, bash scripts, npm scripts, or NX commands yourself
 - **CRITICAL**: NEVER launch, start, run, or test any servers, applications, or tools yourself
 - **CRITICAL**: If testing is needed, ask the user to do it instead
-- MCP proxy server entry point is `packages/websocket-mcp/src/bin/run.ts`
+- MCP proxy server entry point is `packages/websocket-mcp/bin/run.ts`
 - CLI supports both config file mode (`--config <path>`) and WebSocket argument mode (`name[:path]`)
 - **DO NOT** access or run files from `dist/` directory
 
@@ -32,7 +29,7 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 
 **Core Architecture:**
 
-- Entry point: `packages/websocket-mcp/src/bin/run.ts`
+- Entry point: `packages/websocket-mcp/bin/run.ts`
 - **MCP Proxy Server** - Acts as a proxy/bridge between MCP clients (like Claude) and multiple MCP servers
 - Uses `@modelcontextprotocol/sdk` for MCP server implementation
 - Exposes HTTP endpoints for each configured server at `/{serverName}` on configurable port (default: 3003)
@@ -62,7 +59,7 @@ This is an NX monorepo implementing an MCP proxy system with browser-based MCP s
 - Tab synchronization system shows which tabs are connected to the same SharedWorker
 - Proxy can route tool requests from MCP clients (like Claude) to this browser-defined MCP server
 
-### WebSocket MCP Frontend (`packages/websocket-mcp/src/lib/frontend/`)
+### WebSocket MCP Frontend (`packages/websocket-mcp/src/frontend/`)
 
 **Purpose**: Browser-side components within the main websocket-mcp package that enable browser-based MCP servers to connect to the proxy server
 

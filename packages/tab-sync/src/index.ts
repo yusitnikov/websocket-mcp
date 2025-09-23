@@ -1,7 +1,7 @@
-export * from "./lib/TabSyncClient";
-export * from "./lib/TabSyncServer";
-export * from "./lib/TabSyncBase";
-export * from "./lib/tabInfo";
-export * from "./lib/events";
+export * from "./TabSyncClient";
+export * from "./TabSyncServer";
+export * from "./TabSyncBase";
+export * from "./tabInfo";
+export * from "./events";
 
 export { AbortablePromise } from "utils";

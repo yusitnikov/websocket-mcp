@@ -2,8 +2,8 @@
 
 import { Command } from "commander";
 // noinspection ES6PreferShortImport
-import { McpServerProxy } from "../lib/McpServerProxy.ts";
-import { getProxyOptionsFromConfig, loadConfigs } from "../lib/configs.ts";
+import { McpServerProxy } from "../src/McpServerProxy.ts";
+import { getProxyOptionsFromConfig, loadConfigs } from "../src/configs.ts";
 
 const program = new Command();
 program

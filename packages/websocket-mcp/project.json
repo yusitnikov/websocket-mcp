@@ -9,7 +9,7 @@
             "executor": "nx:run-commands",
             "continuous": true,
             "options": {
-                "command": "nodemon --exec \"node --import tsx\" packages/websocket-mcp/src/bin/run.ts",
+                "command": "nodemon --exec \"node --import tsx\" packages/websocket-mcp/bin/run.ts",
                 "forwardAllArgs": true
             }
         }
