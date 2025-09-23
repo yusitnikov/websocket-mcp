@@ -127,6 +127,7 @@ export class WebSocketClientTransport implements Transport {
 
             try {
                 const message = JSON.parse(data.toString()) as JSONRPCMessage;
+                console.log("Received a message:", message);
 
                 // Handle resumption token updates if present
                 const extra: MessageExtraInfo | undefined = undefined;
@@ -200,6 +201,8 @@ export class WebSocketClientTransport implements Transport {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             throw new Error("WebSocket is not connected");
         }
+
+        console.log("Sending a message:", message, options);
 
         try {
             const messageToSend = {
