@@ -1,7 +1,7 @@
 {
     "name": "websocket-mcp",
     "description": "HTTP proxy server that bridges MCP clients to multiple MCP servers via stdio, HTTP, or WebSocket",
-    "version": "1.1.2",
+    "version": "1.2.0",
     "license": "MIT",
     "author": "Yuri Sitnikov <https://github.com/yusitnikov>",
     "repository": {

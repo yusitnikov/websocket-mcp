@@ -89,53 +89,69 @@ export class McpServerProxy {
             console.log(logPrefix, "Active connections count:", connectionsCount);
 
             try {
+                const client = await getClient();
+                const serverCapabilities = client.getServerCapabilities();
+                if (!serverCapabilities) {
+                    // noinspection ExceptionCaughtLocallyJS
+                    throw new McpError(ErrorCode.ConnectionClosed, "Cannot connect to the server");
+                }
+
                 const server = new Server(
-                    {
+                    client.getServerVersion() ?? {
                         name: serverName,
                         version: "1.0.0",
                     },
                     {
-                        capabilities: { tools: {}, resources: {} },
+                        // Filter only capabilities that the proxy supports
+                        capabilities: {
+                            tools: serverCapabilities.tools,
+                            resources: serverCapabilities.resources,
+                        },
+                        instructions: client.getInstructions(),
                     },
                 );
-                server.setRequestHandler(ListToolsRequestSchema, async ({ params }) => {
-                    console.log(logPrefix, "Requested to list tools:", params);
-                    const client = await getClient();
-                    const response = await client.listTools(params);
-                    console.log(logPrefix, "Response:", response);
-                    return response;
-                });
-                server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
-                    console.log(logPrefix, "Requested to call a tool:", params);
-                    const client = await getClient();
-                    const response = await client.callTool(params);
-                    console.log(logPrefix, "Response:", response);
-                    return response;
-                });
-                server.setRequestHandler(
-                    ListResourcesRequestSchema,
-                    async ({ params }): Promise<ListResourcesResult> => {
-                        console.log(logPrefix, "Requested resources list:", params);
+                if (serverCapabilities.tools) {
+                    server.setRequestHandler(ListToolsRequestSchema, async ({ params }) => {
+                        console.log(logPrefix, "Requested to list tools:", params);
                         const client = await getClient();
-                        const response = await client.listResources(params);
+                        const response = await client.listTools(params);
                         console.log(logPrefix, "Response:", response);
                         return response;
-                    },
-                );
-                server.setRequestHandler(ListResourceTemplatesRequestSchema, async ({ params }) => {
-                    console.log(logPrefix, "Requested resource templates list:", params);
-                    const client = await getClient();
-                    const response = await client.listResourceTemplates(params);
-                    console.log(logPrefix, "Response:", response);
-                    return response;
-                });
-                server.setRequestHandler(ReadResourceRequestSchema, async ({ params }) => {
-                    console.log(logPrefix, "Requested to read a resource:", params);
-                    const client = await getClient();
-                    const response = await client.readResource(params);
-                    console.log(logPrefix, "Response:", response);
-                    return response;
-                });
+                    });
+                    server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
+                        console.log(logPrefix, "Requested to call a tool:", params);
+                        const client = await getClient();
+                        const response = await client.callTool(params);
+                        console.log(logPrefix, "Response:", response);
+                        return response;
+                    });
+                }
+                if (serverCapabilities.resources) {
+                    server.setRequestHandler(
+                        ListResourcesRequestSchema,
+                        async ({ params }): Promise<ListResourcesResult> => {
+                            console.log(logPrefix, "Requested resources list:", params);
+                            const client = await getClient();
+                            const response = await client.listResources(params);
+                            console.log(logPrefix, "Response:", response);
+                            return response;
+                        },
+                    );
+                    server.setRequestHandler(ListResourceTemplatesRequestSchema, async ({ params }) => {
+                        console.log(logPrefix, "Requested resource templates list:", params);
+                        const client = await getClient();
+                        const response = await client.listResourceTemplates(params);
+                        console.log(logPrefix, "Response:", response);
+                        return response;
+                    });
+                    server.setRequestHandler(ReadResourceRequestSchema, async ({ params }) => {
+                        console.log(logPrefix, "Requested to read a resource:", params);
+                        const client = await getClient();
+                        const response = await client.readResource(params);
+                        console.log(logPrefix, "Response:", response);
+                        return response;
+                    });
+                }
                 // TODO: prompts, ...
 
                 res.on("close", async () => {
