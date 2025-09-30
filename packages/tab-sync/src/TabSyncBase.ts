@@ -1,5 +1,6 @@
 import { CustomMessageEvent, CustomMessageResponseEvent } from "./events.ts";
-import { AbortablePromise } from "utils";
+// noinspection ES6PreferShortImport
+import { AbortablePromise } from "./utils";
 import { TimeoutError, NoHandlerError } from "./errors.ts";
 import { PartialTabInfo } from "./tabInfo.ts";
 

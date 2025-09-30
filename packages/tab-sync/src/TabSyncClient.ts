@@ -1,6 +1,7 @@
 import { TabToWorkerEvent, WorkerToTabEvent } from "./events.ts";
 import { TabDynamicInfo, TabInfo } from "./tabInfo.ts";
-import { AbortablePromise } from "utils";
+// noinspection ES6PreferShortImport
+import { AbortablePromise } from "./utils";
 import { TabSyncBase } from "./TabSyncBase.ts";
 
 // @ts-ignore

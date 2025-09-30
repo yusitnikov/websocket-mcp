@@ -4,4 +4,4 @@ export * from "./TabSyncBase";
 export * from "./tabInfo";
 export * from "./events";
 
-export { AbortablePromise } from "utils";
+export { AbortablePromise } from "./utils";

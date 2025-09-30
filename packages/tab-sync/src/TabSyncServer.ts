@@ -2,7 +2,8 @@
 
 import { PartialTabInfo, TabInfo } from "./tabInfo.ts";
 import { TabToWorkerEvent, WorkerToTabEvent } from "./events.ts";
-import { AbortablePromise } from "utils";
+// noinspection ES6PreferShortImport
+import { AbortablePromise } from "./utils";
 import { TabSyncBase } from "./TabSyncBase.ts";
 
 interface TabSyncServerOptions<ExtraPingDataT = undefined> {
