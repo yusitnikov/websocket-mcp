@@ -1,6 +1,7 @@
 export interface TabDynamicInfo {
     title: string;
     url: string;
+    hidden: boolean;
 }
 
 export interface TabInfo {

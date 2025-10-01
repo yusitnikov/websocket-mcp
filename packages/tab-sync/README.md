@@ -123,7 +123,7 @@ interface TabInfo {
 ```javascript
 // Display connected tabs
 client.onTabsChanged = (tabs) => {
-    const tabList = tabs.map((tab) => `Tab ${tab.id}: ${tab.dynamicInfo.title}`).join("\n");
+    const tabList = tabs.map((tab) => `Tab ${tab.id} (${tab.dynamicInfo.hidden ? "hidden" : "visible"}): ${tab.dynamicInfo.title}`).join("\n");
 
     document.getElementById("tabs").textContent = tabList;
 };

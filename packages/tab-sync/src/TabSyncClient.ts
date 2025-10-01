@@ -32,6 +32,7 @@ export class TabSyncClient<ExtraPingDataT = undefined> extends TabSyncBase<undef
         return {
             title: window.document.title,
             url: window.location.href,
+            hidden: window.document.hidden,
         };
     }
 
