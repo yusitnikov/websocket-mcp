@@ -1,0 +1,22 @@
+{
+  "name": "connection-broker",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/connection-broker/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/connection-broker"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nodemon --exec \"node --import tsx\" packages/connection-broker/bin/broker.ts -- --port 3004"
+      }
+    }
+  },
+  "tags": []
+}

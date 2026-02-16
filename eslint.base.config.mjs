@@ -23,6 +23,8 @@ export default [
                     ],
                 },
             ],
+            "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
+            "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
         },
     },
     {

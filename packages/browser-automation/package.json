@@ -1,0 +1,32 @@
+{
+    "name": "@sitnikov/browser-automation",
+    "version": "0.1.0",
+    "description": "Browser automation via MCP using the generic connection broker",
+    "type": "module",
+    "main": "./index.js",
+    "types": "./index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./index.js",
+            "types": "./index.d.ts"
+        },
+        "./tab-client": {
+            "import": "./tab-client.js",
+            "types": "./tab-client.d.ts"
+        },
+        "./mcp-server": {
+            "import": "./mcp-server.js",
+            "types": "./mcp-server.d.ts"
+        }
+    },
+    "bin": "./bin/mcp-server.js",
+    "dependencies": {
+        "@sitnikov/connection-broker": "^0.1.1",
+        "@modelcontextprotocol/sdk": "^1.16.0",
+        "commander": "^14.0.1"
+    },
+    "devDependencies": {
+        "typescript": "~5.8.3",
+        "tsx": "^4.20.5"
+    }
+}

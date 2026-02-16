@@ -8,39 +8,36 @@
 </head>
 <body>
     <header>
-        <h1>Demo Web Application</h1>
-        <p>TypeScript + Vite + SharedWorker</p>
+        <h1>Browser Automation Demo</h1>
+        <p>Generic Connection Broker + MCP</p>
     </header>
 
     <main>
         <section class="demo-section">
-            <h2>Connection Status</h2>
+            <h2>Browser Automation Demo</h2>
             <div class="demo-content">
-                <div id="sw-status">🔄 Auto-connecting to SharedWorker...</div>
-                <div id="mcp-status">🔄 Auto-connecting to MCP server...</div>
+                <p>This browser tab is connected to the generic connection broker and can be controlled via MCP tools.</p>
             </div>
         </section>
 
         <section class="demo-section">
-            <h2>Tab Tracking</h2>
+            <h2>Connection Status</h2>
             <div class="demo-content">
-                <div id="tab-info">
-                    <p><strong>Current Tab ID:</strong> <span id="current-tab-id">-</span></p>
-                    <p><strong>Total Tabs:</strong> <span id="tab-count">-</span></p>
-                </div>
-                <div id="tab-list">
-                    <h3>All Open Tabs:</h3>
-                    <table id="tabs-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Title</th>
-                                <th>Created</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabs-tbody"></tbody>
-                    </table>
-                </div>
+                <div id="connection-status">🔄 Connecting to broker...</div>
+                <p><strong>Connection ID:</strong> <span id="connection-id">-</span></p>
+            </div>
+        </section>
+
+        <section class="demo-section">
+            <h2>How to Use</h2>
+            <div class="demo-content">
+                <ol>
+                    <li>Start the connection broker: <code>connection-broker --port 3004</code></li>
+                    <li>Open this page in one or more browser tabs</li>
+                    <li>Start the MCP server: <code>browser-mcp-server --broker ws://localhost:3004 --stdio</code></li>
+                    <li>Add the MCP server to Claude Desktop configuration</li>
+                    <li>Use Claude to control browser tabs via <code>list_tabs</code> and <code>execute_js</code> tools</li>
+                </ol>
             </div>
         </section>
     </main>

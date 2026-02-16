@@ -1,74 +1,34 @@
-import { McpServerPingData } from "./types.ts";
-import { TabSyncClient } from "@sitnikov/tab-sync";
+import { BrowserTabClient } from "@sitnikov/browser-automation/tab-client";
 
 // DOM elements
-const swStatus = document.getElementById("sw-status") as HTMLDivElement;
-const mcpStatus = document.getElementById("mcp-status") as HTMLDivElement;
-const currentTabId = document.getElementById("current-tab-id") as HTMLSpanElement;
-const tabCount = document.getElementById("tab-count") as HTMLSpanElement;
-const tabsTbody = document.getElementById("tabs-tbody") as HTMLTableSectionElement;
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+const connectionStatus = document.getElementById("connection-status") as HTMLDivElement;
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+const connectionId = document.getElementById("connection-id") as HTMLSpanElement;
 
-// Extract name from URL hash (everything after #)
-const serverName = window.location.hash.startsWith("#") ? window.location.hash.substring(1) : "demo";
+// Create browser tab client
+const client = new BrowserTabClient("ws://localhost:3004");
 
-const tabSyncClient = new TabSyncClient<McpServerPingData>({
-    sharedWorkerPath: `/src/shared-worker.ts?serverName=${encodeURIComponent(serverName)}`,
-    sharedWorkerOptions: {
-        name: `MCP server + tabs sync (${serverName})`,
-        type: "module",
-    },
-});
-
-tabSyncClient.onTabsChanged = (tabs) => {
-    // Update tab info
-    currentTabId.textContent = String(tabSyncClient.myTabInfo.id);
-    tabCount.textContent = tabs.length.toString();
-
-    // Update tab table
-    tabsTbody.innerHTML = "";
-    tabs.forEach((tab) => {
-        const row = document.createElement("tr");
-
-        if (tab.id === tabSyncClient.myTabInfo.id) {
-            row.style.backgroundColor = "#e3f2fd";
-        }
-
-        const idCell = document.createElement("td");
-        idCell.textContent = String(tab.id);
-
-        const titleCell = document.createElement("td");
-        titleCell.textContent = tab.dynamicInfo.title;
-
-        const createdCell = document.createElement("td");
-        createdCell.textContent = new Date(tab.createdAt).toLocaleTimeString();
-
-        row.appendChild(idCell);
-        row.appendChild(titleCell);
-        row.appendChild(createdCell);
-        tabsTbody.appendChild(row);
-    });
+// Update UI when connected
+client.onConnected = (id) => {
+    console.log("Connected to broker with ID:", id);
+    connectionStatus.innerHTML = '<span class="success">✓ Connected to broker</span>';
+    connectionId.textContent = id;
 };
 
-tabSyncClient.onExtraPingDataChanged = ({ connected }) => {
-    if (connected) {
-        mcpStatus.innerHTML = '<span class="success">✓ Connected to MCP server</span>';
-    } else {
-        mcpStatus.innerHTML = '<span class="warning">⚠ Not connected to MCP server</span>';
-    }
+// Update UI when disconnected
+client.onDisconnected = () => {
+    console.log("Disconnected from broker");
+    connectionStatus.innerHTML = '<span class="error">✗ Disconnected from broker</span>';
+    connectionId.textContent = "-";
 };
 
-tabSyncClient.onCustomMessage<string, boolean>("confirm", (message) => {
-    return confirm(message);
-});
-
+// Connect to broker
 try {
-    tabSyncClient.start();
-
-    console.debug("SharedWorker connected");
-    swStatus.innerHTML = '<span class="success">✓ SharedWorker connected and active</span>';
+    await client.connect();
+    console.log("Browser tab client initialized");
 } catch (error) {
-    console.warn("SharedWorker connection failed:", error);
+    console.error("Failed to connect to broker:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    swStatus.innerHTML = `<span class="error">✗ SharedWorker connection failed: ${errorMessage}</span>`;
-    mcpStatus.innerHTML = "";
+    connectionStatus.innerHTML = `<span class="error">✗ Connection failed: ${errorMessage}</span>`;
 }

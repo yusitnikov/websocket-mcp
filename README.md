@@ -1,52 +1,50 @@
 # WebSocket MCP
 
-A system for creating MCP (Model Context Protocol) servers that run in web browsers and connect to AI clients through a proxy server.
+A system for creating MCP (Model Context Protocol) servers that communicate with browser tabs via WebSocket.
 
 ## Packages
 
-### websocket-mcp
+### connection-broker
 
-Complete MCP proxy system that bridges AI clients to multiple MCP servers and enables browser-based MCP servers.
+Generic, reusable WebSocket broker for routing messages between clients. Completely domain-agnostic — knows nothing about browsers, MCP, or any specific use case.
 
-```bash
-npm install websocket-mcp
-```
+[📖 Documentation](packages/connection-broker/README.md)
 
-[📖 Documentation](packages/websocket-mcp/README.md)
+### browser-automation
 
-### tab-sync
+Browser automation built on the connection broker. Provides an MCP server and a browser tab client, enabling Claude (or any MCP client) to control browser tabs remotely.
 
-Library for coordinating browser tabs using SharedWorkers.
-
-```bash
-npm install @sitnikov/tab-sync
-```
-
-[📖 Documentation](packages/tab-sync/README.md)
+[📖 Documentation](packages/browser-automation/README.md)
 
 ## Quick Start
 
-1. **Start the proxy server:**
+**1. Start the connection broker:**
 
 ```bash
-npx websocket-mcp browser-tools --port 3003
+npm run broker
 ```
 
-2. **Create a browser MCP server:**
+**2. Start the demo app and open browser tabs:**
 
-```javascript
-import { WebSocketClientTransport } from "websocket-mcp/frontend";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-
-const server = new Server({ name: "browser-tools", version: "1.0.0" }, { capabilities: { tools: {} } });
-
-const transport = new WebSocketClientTransport({
-    url: "ws://localhost:3003/browser-tools",
-});
-
-await server.connect(transport);
+```bash
+npm run demo
+# Navigate to http://localhost:4200 in one or more tabs
 ```
 
-3. **Connect AI clients to `http://localhost:3003/browser-tools`**
+**3. Configure the MCP server in Claude Desktop:**
 
-This enables AI systems to access browser-specific capabilities that traditional command-line MCP servers cannot provide.
+```json
+{
+    "mcpServers": {
+        "browser": {
+            "command": "npx",
+            "args": ["tsx", "/absolute/path/to/packages/browser-automation/bin/mcp-server.ts", "--broker", "ws://localhost:3004", "--stdio"]
+        }
+    }
+}
+```
+
+**4. Use the MCP tools in Claude:**
+
+- `list_tabs` — List all connected browser tabs
+- `execute_js` — Execute JavaScript in a specific tab

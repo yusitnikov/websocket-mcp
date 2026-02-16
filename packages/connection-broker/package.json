@@ -1,0 +1,32 @@
+{
+    "name": "@sitnikov/connection-broker",
+    "version": "0.1.1",
+    "description": "Generic connection broker for routing messages between clients",
+    "type": "module",
+    "main": "./index.js",
+    "types": "./index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./index.js",
+            "types": "./index.d.ts"
+        },
+        "./client": {
+            "import": "./client.js",
+            "types": "./client.d.ts"
+        },
+        "./protocol": {
+            "import": "./protocol.js",
+            "types": "./protocol.d.ts"
+        }
+    },
+    "bin": "./bin/broker.js",
+    "dependencies": {
+        "ws": "^8.18.3",
+        "commander": "^14.0.1"
+    },
+    "devDependencies": {
+        "@types/ws": "^8.18.1",
+        "typescript": "~5.8.3",
+        "tsx": "^4.20.5"
+    }
+}

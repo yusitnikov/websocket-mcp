@@ -18,11 +18,12 @@
         "noUncheckedSideEffectImports": true,
         "baseUrl": ".",
         "paths": {
-            "@sitnikov/tab-sync": ["./packages/tab-sync/src/index.ts"],
-            "@websocket-mcp/frontend": ["packages/websocket-mcp-frontend/src/index.ts"],
-            "utils": ["packages/utils/src/index.ts"],
-            "websocket-mcp": ["packages/websocket-mcp/src/index.ts"],
-            "websocket-mcp/frontend": ["packages/websocket-mcp/src/frontend/index.ts"]
+            "@sitnikov/connection-broker": ["./packages/connection-broker/src/index.ts"],
+            "@sitnikov/connection-broker/client": ["./packages/connection-broker/src/client/index.ts"],
+            "@sitnikov/connection-broker/protocol": ["./packages/connection-broker/src/protocol.ts"],
+            "@sitnikov/browser-automation": ["./packages/browser-automation/src/index.ts"],
+            "@sitnikov/browser-automation/tab-client": ["./packages/browser-automation/src/tab-client/index.ts"],
+            "@sitnikov/browser-automation/mcp-server": ["./packages/browser-automation/src/mcp-server/index.ts"]
         }
     }
 }

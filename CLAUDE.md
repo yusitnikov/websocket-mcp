@@ -4,112 +4,130 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an NX monorepo implementing an MCP proxy system with browser-based MCP servers:
+This is an NX monorepo implementing a **generic connection broker** system that enables browser automation via MCP.
 
-**Apps:**
+**Core Packages:**
 
-- `apps/demo/` - Browser demo that creates MCP servers in SharedWorkers and connects them to the proxy
-- `packages/websocket-mcp/` - Complete MCP proxy system with both server and frontend components
-    - **Server**: HTTP proxy server that bridges MCP clients (like Claude) to external MCP servers via stdio, HTTP, or WebSocket
-    - **Frontend**: Browser-side components (`src/frontend/`) that provide `WebSocketClientTransport` for browser-based MCP servers to connect to the proxy
-- `packages/tab-sync/` - Provides `TabSyncClient` and `TabSyncServer` for coordinating multiple browser tabs through SharedWorkers
+- `packages/connection-broker/` - Generic, reusable WebSocket broker for routing messages between clients (completely domain-agnostic)
+- `packages/browser-automation/` - Browser automation built on the broker (MCP server + browser tab client)
+- `apps/demo/` - Browser demo application showing browser automation in action
 
 ## Development Notes
 
 - **CRITICAL**: NEVER execute any commands, bash scripts, npm scripts, or NX commands yourself
 - **CRITICAL**: NEVER launch, start, run, or test any servers, applications, or tools yourself
 - **CRITICAL**: If testing is needed, ask the user to do it instead
-- MCP proxy server entry point is `packages/websocket-mcp/bin/run.ts`
-- CLI supports both config file mode (`--config <path>`) and WebSocket argument mode (`name[:path]`)
+- Connection broker entry point: `packages/connection-broker/bin/broker.ts`
+- MCP server entry point: `packages/browser-automation/bin/mcp-server.ts`
 - **DO NOT** access or run files from `dist/` directory
 
 ## Architecture
 
-### MCP Proxy Server (`packages/websocket-mcp/`)
+See `ARCHITECTURE.md` for full details. Key points:
 
-**Core Architecture:**
+### Generic Connection Broker (`packages/connection-broker/`)
 
-- Entry point: `packages/websocket-mcp/bin/run.ts`
-- **MCP Proxy Server** - Acts as a proxy/bridge between MCP clients (like Claude) and multiple MCP servers
-- Uses `@modelcontextprotocol/sdk` for MCP server implementation
-- Exposes HTTP endpoints for each configured server at `/{serverName}` on configurable port (default: 3003)
-- Proxies tool and resource requests/responses between MCP clients and external MCP servers
-- Supports browser-based MCP servers via WebSocket connections
+**What it is**: Completely reusable WebSocket broker that routes messages between clients. Domain-agnostic - can be used for ANY scenario where two parties can't reach each other directly.
 
-**Current State:**
+**Protocol**:
+- Clients register with a **role** (arbitrary string) and get assigned a **UUID**
+- Any client can list connections by role
+- Clients open **channels** (ephemeral pseudo-connections) to other clients by UUID
+- Messages are routed through channels with request-response pattern
+- All messages have auto-increment integer IDs for tracking
+- Responses include `replyTo` field referencing request message ID
 
-- `McpServerProxy` - Main proxy class that handles HTTP server setup, WebSocket management, and request routing
-- Configuration system (`configs.ts`) - Loads server configurations from `mcp-config.json` and generates transport options
-- Server configuration supports stdio, HTTP, and WebSocket server types for external MCP servers
-- Express.js server handles MCP HTTP requests at individual server endpoints
-- WebSocket server implemented - browser tabs can register as MCP servers
-- Custom WebSocket MCP transport protocol implemented (`WebSocketServerTransport`, `WebSocketClientTransport`)
-- Browser-defined MCP servers are treated as external servers by the proxy
-- Tools and resources are proxied (prompts planned for future)
+**Key files**:
+- `src/Broker.ts` - Server implementation
+- `src/client/BrokerClient.ts` - Client SDK
+- `src/client/Channel.ts` - Channel abstraction
+- `src/protocol.ts` - Protocol type definitions
 
-### Demo Web Application (`apps/demo/`)
+**ID Types**:
+- Connection IDs: UUID (persistent per client)
+- Channel IDs: UUID (persistent per channel)
+- Message IDs: Auto-increment integers (for request/response tracking)
 
-**Purpose**: Browser demo proving MCP servers can run in browser tabs and connect to the proxy
+**Exports**:
+- `ConnectionBroker` - Server class
+- `BrokerClient` - Client SDK
+- `Channel` - Channel class
+- Protocol types
 
-**Architecture**:
+### Browser Automation (`packages/browser-automation/`)
 
-- Demo creates an MCP **server** in a SharedWorker that connects to the proxy via WebSocket
-- SharedWorker ensures only one WebSocket connection per browser instance (one SharedWorker = one connection)
-- Browser-based MCP server implements `demo_ping` and `get_tabs` tools
-- Tab synchronization system shows which tabs are connected to the same SharedWorker
-- Proxy can route tool requests from MCP clients (like Claude) to this browser-defined MCP server
+**What it is**: Browser automation built on top of the generic broker.
 
-### WebSocket MCP Frontend (`packages/websocket-mcp/src/frontend/`)
+**Components**:
 
-**Purpose**: Browser-side components within the main websocket-mcp package that enable browser-based MCP servers to connect to the proxy server
+1. **BrowserTabClient** (`src/tab-client/`)
+   - Browser tabs connect to broker with role `"browser-tab"`
+   - Persistent connection with auto-reconnect (exponential backoff)
+   - Handles incoming channels and executes JavaScript commands
+   - Supports async/await code execution
 
-**Key Export**: `WebSocketClientTransport` - MCP transport implementation that connects via WebSocket to the proxy server
+2. **BrowserMcpServer** (`src/mcp-server/`)
+   - MCP server that uses BrokerClient to talk to browser tabs
+   - Connects to broker **on-demand** for each tool call (ephemeral connections)
+   - Implements `list_tabs` and `execute_js` tools
+   - Disconnects immediately after each tool execution
 
-**Import Path**: Browser code should import from `websocket-mcp/frontend` (not from the package root) to maintain clear separation between server and browser components
+**Protocol flow** (example for execute_js):
+1. MCP server connects to broker with role `"mcp-server"`
+2. Opens channel to specific tab UUID
+3. Sends: `{action: "execute_js", code: "document.title"}`
+4. Tab receives, executes code (awaits if Promise)
+5. Tab sends: `{success: true, result: "\"Page Title\""}`
+6. MCP server receives result, closes channel, disconnects
+7. Returns result to Claude
 
-### Tab Sync (`packages/tab-sync/`)
+### Demo Application (`apps/demo/`)
 
-**Purpose**: Enables communication between browser tabs via SharedWorker
+**Purpose**: Example browser application using `BrowserTabClient`.
 
-**Key Exports**:
+**What it does**:
+- Connects to broker on startup
+- Shows connection status and assigned UUID
+- Automatically handles automation commands from MCP server
+- No SharedWorker complexity - just direct WebSocket connection
 
-- `TabSyncClient` - Browser tab component that connects to SharedWorker and receives tab updates
-- `TabSyncServer` - SharedWorker component that manages connected tabs and broadcasts changes
-- `TabSyncBase` - Abstract base class providing shared messaging functionality
-- Tab info tracking with creation time, dynamic titles, and connection status
-- Bidirectional custom messaging with typed payloads and async responses
-- SharedWorker keeps running even when tabs are inactive, ensuring all tabs remain trackable by the sync system
+## Key Design Principles
 
-**Custom Messaging Features**:
+1. **Generic Infrastructure**: The broker knows nothing about browsers, MCP, or any specific use case
+2. **Role-Agnostic**: Roles are just strings - no validation or special handling
+3. **Payload-Agnostic**: Broker never inspects message payloads - completely opaque
+4. **Request-Response Pattern**: All operations get explicit success/failure responses via `replyTo`
+5. **Ephemeral Channels**: Channels are temporary (open → use → close)
+6. **Clean Separation**: Generic layer (connection-broker) vs specific implementation (browser-automation)
 
-- Tabs can send typed messages to SharedWorker and await responses
-- SharedWorker can send commands to specific tabs and receive confirmations
-- Message handlers support both sync and async responses
-- Built-in timeout handling and resource cleanup via AbortablePromise
-- Type-safe message routing by message type strings
+## Message Flow Pattern
+
+**All broker protocol messages include:**
+- `id`: Auto-increment integer (unique message ID)
+- `replyTo`: Integer (optional, for responses only, references request message ID)
+
+**Request-Response (expects reply):**
+- `register` → `registered` or `register_failed`
+- `list_by_role` → `connections` or `list_by_role_failed`
+- `open` → `channel_opened` or `channel_open_failed`
+- `message` → `channel_message_sent` or `channel_message_failed`
+- `close` → `channel_closed` or `channel_close_failed`
+
+**Unsolicited Notifications (no replyTo):**
+- `incoming_channel` - Notifies target about new channel
+- `channel_message` - Notifies recipient about message
+- `channel_closed_notification` - Notifies other party about closure
 
 ## Documentation Files
 
-Each package and app includes comprehensive documentation:
-
-- **README.md** files in each package/app - User-focused documentation with installation, configuration, and usage examples
-- **IMPLEMENTATION.md** files in packages - Developer-focused documentation with architecture details and design decisions
-- **CLAUDE.md** (this file) - Development guidance for Claude Code
-
-## Configuration Files
-
-- `mcp-config.json` - Required configuration file for MCP server connections (loaded by `configs.ts`)
-- `nx.json` - NX workspace configuration with build targets and plugins
-- Root `package.json` - Workspace dependencies and NX scripts
-- Root `tsconfig.json` - TypeScript configuration with path mappings for packages
-- Individual `project.json` files in each app/package define NX targets
+- `ARCHITECTURE.md` - Full architecture documentation
+- `README.md` files in packages - User-focused documentation
+- `CLAUDE.md` (this file) - Development guidance
 
 ## Key Dependencies
 
 - `@modelcontextprotocol/sdk` - MCP protocol implementation
-- `express` - Web server for HTTP transport mode
-- `commander` - CLI argument parsing
-- `zod` - Schema validation
+- `ws` - WebSocket server/client
 - `typescript`, `vite` - Build tooling
 
 ## Important: What NOT to Do
