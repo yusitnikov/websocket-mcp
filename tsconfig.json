@@ -23,6 +23,9 @@
             "@sitnikov/connection-broker/protocol": ["./packages/connection-broker/src/protocol.ts"],
             "@sitnikov/browser-automation": ["./packages/browser-automation/src/index.ts"],
             "@sitnikov/browser-automation/tab-client": ["./packages/browser-automation/src/tab-client/index.ts"],
+            "@sitnikov/browser-automation/automation-client": [
+                "./packages/browser-automation/src/automation-client/index.ts"
+            ],
             "@sitnikov/browser-automation/mcp-server": ["./packages/browser-automation/src/mcp-server/index.ts"]
         }
     }

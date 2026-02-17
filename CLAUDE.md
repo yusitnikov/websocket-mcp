@@ -14,9 +14,8 @@ This is an NX monorepo implementing a **generic connection broker** system that 
 
 ## Development Notes
 
-- **CRITICAL**: NEVER execute any commands, bash scripts, npm scripts, or NX commands yourself
 - **CRITICAL**: NEVER launch, start, run, or test any servers, applications, or tools yourself
-- **CRITICAL**: If testing is needed, ask the user to do it instead
+- To check for issues after making changes, run `npm run lint` and `npm run typecheck`
 - Connection broker entry point: `packages/connection-broker/bin/broker.ts`
 - MCP server entry point: `packages/browser-automation/bin/mcp-server.ts`
 - **DO NOT** access or run files from `dist/` directory
@@ -66,11 +65,15 @@ See `ARCHITECTURE.md` for full details. Key points:
    - Handles incoming channels and executes JavaScript commands
    - Supports async/await code execution
 
-2. **BrowserMcpServer** (`src/mcp-server/`)
-   - MCP server that uses BrokerClient to talk to browser tabs
-   - Connects to broker **on-demand** for each tool call (ephemeral connections)
+2. **BrowserAutomationClient** (`src/automation-client/`)
+   - Owns all broker communication logic: listing tabs and executing JS
+   - Connects to broker **on-demand** for each operation (ephemeral connections)
+   - Disconnects immediately after each operation
+
+3. **BrowserMcpServer** (`src/mcp-server/`)
+   - Thin MCP adapter that delegates to `BrowserAutomationClient`
    - Implements `list_tabs` and `execute_js` tools
-   - Disconnects immediately after each tool execution
+   - No direct broker imports
 
 **Protocol flow** (example for execute_js):
 1. MCP server connects to broker with role `"mcp-server"`
@@ -132,6 +135,6 @@ See `ARCHITECTURE.md` for full details. Key points:
 
 ## Important: What NOT to Do
 
-- **DO NOT** execute any commands, scripts, or launch any processes
+- **DO NOT** launch servers, applications, or long-running processes
 - **DO NOT** access or reference files in `dist/` directory - they are not used in development
 - **DO NOT** suggest compilation steps - development works directly from TypeScript source

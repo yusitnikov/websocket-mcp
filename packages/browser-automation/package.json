@@ -14,6 +14,10 @@
             "import": "./tab-client.js",
             "types": "./tab-client.d.ts"
         },
+        "./automation-client": {
+            "import": "./automation-client.js",
+            "types": "./automation-client.d.ts"
+        },
         "./mcp-server": {
             "import": "./mcp-server.js",
             "types": "./mcp-server.d.ts"

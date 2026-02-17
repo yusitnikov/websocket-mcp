@@ -16,10 +16,10 @@ program
     .option("--broker <url>", "WebSocket URL of the connection broker", "ws://localhost:3004")
     .option("--stdio", "Use stdio transport (default)", true)
     .action(async (options) => {
-        const server = new BrowserMcpServer(LOG_FILE);
+        const server = new BrowserMcpServer(LOG_FILE, options.broker, "stdio");
 
         try {
-            await server.start(options.broker, "stdio");
+            await server.start();
         } catch {
             process.exit(1);
         }

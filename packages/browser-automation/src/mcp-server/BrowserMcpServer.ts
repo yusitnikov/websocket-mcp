@@ -1,8 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { BrokerClient } from "@sitnikov/connection-broker/client";
-import type { BrowserCommand, BrowserResponse } from "../tab-client/BrowserTabClient";
+import { BrowserAutomationClient } from "../automation-client/BrowserAutomationClient";
 import { Logger } from "./Logger";
 
 /**
@@ -15,12 +14,22 @@ import { Logger } from "./Logger";
  * Uses the generic connection broker to communicate with browser tabs.
  */
 export class BrowserMcpServer {
-    private server: Server;
-    private logger: Logger;
-    private brokerUrl = "";
+    private readonly server: Server;
+    private readonly logger: Logger;
+    private readonly client: BrowserAutomationClient;
 
-    constructor(logFilePath: string) {
+    /**
+     * @param logFilePath - Path to the log file
+     * @param brokerUrl - WebSocket URL of the connection broker
+     * @param transport - MCP transport (default: stdio)
+     */
+    constructor(
+        logFilePath: string,
+        brokerUrl: string,
+        private readonly transport: "stdio" | "http" = "stdio",
+    ) {
         this.logger = new Logger(logFilePath);
+        this.client = new BrowserAutomationClient(brokerUrl, this.logger);
         this.server = new Server(
             {
                 name: "browser-automation",
@@ -36,35 +45,12 @@ export class BrowserMcpServer {
         this.setupHandlers();
     }
 
-    /**
-     * Start the MCP server.
-     *
-     * @param brokerUrl - WebSocket URL of the connection broker
-     * @param transport - MCP transport (default: stdio)
-     */
-    async start(brokerUrl: string, transport: "stdio" | "http" = "stdio"): Promise<void> {
-        this.brokerUrl = brokerUrl;
-
-        // Start MCP server
-        if (transport === "stdio") {
+    async start(): Promise<void> {
+        if (this.transport === "stdio") {
             await this.server.connect(new StdioServerTransport());
             this.logger.log("MCP server running on stdio");
         } else {
             throw new Error("HTTP transport not yet implemented");
-        }
-    }
-
-    /**
-     * Create a temporary broker connection for a single operation.
-     */
-    private async withBroker<T>(fn: (broker: BrokerClient) => Promise<T>): Promise<T> {
-        const broker = new BrokerClient(this.brokerUrl, "mcp-server", this.logger);
-
-        try {
-            await broker.connect();
-            return await fn(broker);
-        } finally {
-            broker.disconnect();
         }
     }
 
@@ -129,9 +115,7 @@ export class BrowserMcpServer {
     }
 
     private async handleListTabs() {
-        const ids = await this.withBroker(async (broker) => {
-            return await broker.listByRole("browser-tab");
-        });
+        const ids = await this.client.listTabs();
 
         this.logger.log(`Found ${ids.length} browser tabs`);
 
@@ -150,59 +134,31 @@ export class BrowserMcpServer {
 
         this.logger.log(`Executing JS in tab ${tabId}: ${code.substring(0, 100)}...`);
 
-        return await this.withBroker(async (broker) => {
-            // Open channel to the tab
-            const channel = await broker.openChannel(tabId);
+        const result = await this.client.executeJs(tabId, code);
 
-            // Send command and wait for response
-            const result = await new Promise<BrowserResponse>((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error("Timeout waiting for response (30s)"));
-                }, 30000);
+        if (result.success) {
+            this.logger.log("JS execution successful");
 
-                channel.onMessage = (payload: unknown) => {
-                    clearTimeout(timeout);
-                    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                    resolve(payload as BrowserResponse);
-                };
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: result.result,
+                    },
+                ],
+            };
+        } else {
+            this.logger.error(`JS execution failed: ${result.error}`);
 
-                channel.onClosed = () => {
-                    clearTimeout(timeout);
-                    reject(new Error("Channel closed before receiving response"));
-                };
-
-                const command: BrowserCommand = {
-                    action: "execute_js",
-                    code,
-                };
-
-                channel.send(command);
-            });
-
-            if (result.success) {
-                this.logger.log("JS execution successful");
-
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: result.result,
-                        },
-                    ],
-                };
-            } else {
-                this.logger.error(`JS execution failed: ${result.error}`);
-
-                return {
-                    content: [
-                        {
-                            type: "text",
-                            text: `Error: ${result.error}`,
-                        },
-                    ],
-                    isError: true,
-                };
-            }
-        });
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Error: ${result.error}`,
+                    },
+                ],
+                isError: true,
+            };
+        }
     }
 }

@@ -9,7 +9,8 @@ This package provides browser automation capabilities through MCP (Model Context
 ### Components
 
 1. **BrowserTabClient** - Browser-side client that connects to the broker and handles automation commands
-2. **BrowserMcpServer** - MCP server that provides tools for listing tabs and executing JavaScript
+2. **BrowserAutomationClient** - Programmatic client for listing tabs and executing JavaScript via the broker
+3. **BrowserMcpServer** - Thin MCP adapter that exposes `BrowserAutomationClient` as MCP tools
 
 ## Installation
 
@@ -22,21 +23,21 @@ npm install @sitnikov/browser-automation
 ### In the Browser
 
 ```typescript
-import { BrowserTabClient } from '@sitnikov/browser-automation/tab-client'
+import { BrowserTabClient } from "@sitnikov/browser-automation/tab-client";
 
-const client = new BrowserTabClient('ws://localhost:3004')
+const client = new BrowserTabClient("ws://localhost:3004");
 
 // Optional: Listen for connection events
 client.onConnected = (id) => {
-  console.log('Connected to broker with ID:', id)
-}
+    console.log("Connected to broker with ID:", id);
+};
 
 client.onDisconnected = () => {
-  console.log('Disconnected from broker')
-}
+    console.log("Disconnected from broker");
+};
 
 // Connect to the broker
-await client.connect()
+await client.connect();
 
 // The client now automatically:
 // - Registers with role "browser-tab"
@@ -60,13 +61,26 @@ browser-mcp-server --broker ws://localhost:3004 --stdio
 Or programmatically:
 
 ```typescript
-import { BrowserMcpServer } from '@sitnikov/browser-automation/mcp-server'
+import { BrowserMcpServer } from "@sitnikov/browser-automation/mcp-server";
 
-const server = new BrowserMcpServer('/path/to/logs/mcp-server.log')
-await server.start('ws://localhost:3004', 'stdio')
+const server = new BrowserMcpServer("/path/to/logs/mcp-server.log", "ws://localhost:3004", "stdio");
+await server.start();
 ```
 
 **Note:** The MCP server connects to the broker **on-demand** for each tool call and disconnects immediately after. This prevents stale connections and ensures reliability.
+
+### Using the Automation Client Directly
+
+`BrowserAutomationClient` can be used independently of MCP — for scripting, testing, or building other integrations:
+
+```typescript
+import { BrowserAutomationClient } from "@sitnikov/browser-automation/automation-client";
+
+const client = new BrowserAutomationClient("ws://localhost:3004");
+
+const tabs = await client.listTabs();
+const result = await client.executeJs(tabs[0], "document.title");
+```
 
 ### Configuring Claude Desktop
 
@@ -74,12 +88,12 @@ Add to your Claude Desktop configuration:
 
 ```json
 {
-  "mcpServers": {
-    "browser": {
-      "command": "browser-mcp-server",
-      "args": ["--broker", "ws://localhost:3004", "--stdio"]
+    "mcpServers": {
+        "browser": {
+            "command": "browser-mcp-server",
+            "args": ["--broker", "ws://localhost:3004", "--stdio"]
+        }
     }
-  }
 }
 ```
 
@@ -92,16 +106,19 @@ The MCP server provides the following tools:
 Lists all connected browser tabs.
 
 **Input Schema:**
+
 ```json
 {}
 ```
 
 **Output:**
+
 ```json
 ["tab-uuid-1", "tab-uuid-2", "tab-uuid-3"]
 ```
 
 **Example:**
+
 ```
 Claude: Use the list_tabs tool
 → Returns: ["a1b2c3d4-...", "e5f6g7h8-..."]
@@ -112,25 +129,29 @@ Claude: Use the list_tabs tool
 Executes JavaScript code in a specific browser tab.
 
 **Input Schema:**
-```json
+
+```json5
 {
-  "tabId": "string",  // ID from list_tabs
-  "code": "string"    // JavaScript code to execute
+    tabId: "string", // ID from list_tabs
+    code: "string", // JavaScript code to execute
 }
 ```
 
 **Output:**
+
 ```json
 "result of the execution"
 ```
 
 **Example:**
+
 ```
 Claude: Use execute_js with tabId="a1b2c3d4-..." and code="document.title"
 → Returns: "My Page Title"
 ```
 
 **Features:**
+
 - ✅ Supports async/await code (promises are automatically awaited)
 - ✅ Returns serialized results (JSON for objects, string for primitives)
 - ✅ Handles errors and reports them back to MCP
@@ -140,37 +161,41 @@ Claude: Use execute_js with tabId="a1b2c3d4-..." and code="document.title"
 **Advanced Examples:**
 
 Get all links on a page:
+
 ```javascript
-Array.from(document.querySelectorAll('a')).map(a => ({
-  text: a.textContent,
-  href: a.href
-}))
+Array.from(document.querySelectorAll("a")).map((a) => ({
+    text: a.textContent,
+    href: a.href,
+}));
 ```
 
 Fill out a form:
+
 ```javascript
-document.querySelector('#email').value = 'test@example.com'
-document.querySelector('#password').value = 'secret'
-document.querySelector('#submit').click()
-'Form submitted'
+document.querySelector("#email").value = "test@example.com";
+document.querySelector("#password").value = "secret";
+document.querySelector("#submit").click();
+("Form submitted");
 ```
 
 Extract data:
+
 ```javascript
 ({
-  title: document.title,
-  url: window.location.href,
-  headings: Array.from(document.querySelectorAll('h1, h2, h3')).map(h => h.textContent)
-})
+    title: document.title,
+    url: window.location.href,
+    headings: Array.from(document.querySelectorAll("h1, h2, h3")).map((h) => h.textContent),
+});
 ```
 
 Async operation:
+
 ```javascript
 (async () => {
-  const response = await fetch('/api/data')
-  const data = await response.json()
-  return data
-})()
+    const response = await fetch("/api/data");
+    const data = await response.json();
+    return data;
+})();
 ```
 
 ## How It Works
@@ -205,18 +230,18 @@ Async operation:
 
 1. Browser tabs connect to the broker with role `"browser-tab"` (persistent connection with auto-reconnect)
 2. When Claude calls `list_tabs`, the MCP server:
-   - Connects to the broker with role `"mcp-server"`
-   - Queries the broker for all connections with role `"browser-tab"`
-   - Disconnects from the broker
-   - Returns the list to Claude
+    - Connects to the broker with role `"mcp-server"`
+    - Queries the broker for all connections with role `"browser-tab"`
+    - Disconnects from the broker
+    - Returns the list to Claude
 3. When Claude calls `execute_js`, the MCP server:
-   - Connects to the broker with role `"mcp-server"`
-   - Opens a channel to the specific tab
-   - Sends the JavaScript code
-   - Waits for the result (with 30s timeout)
-   - Closes the channel
-   - Disconnects from the broker
-   - Returns the result to Claude
+    - Connects to the broker with role `"mcp-server"`
+    - Opens a channel to the specific tab
+    - Sends the JavaScript code
+    - Waits for the result (with 30s timeout)
+    - Closes the channel
+    - Disconnects from the broker
+    - Returns the result to Claude
 
 ## Security Considerations
 
@@ -249,25 +274,25 @@ Create an HTML page:
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Browser Automation Demo</title>
-</head>
-<body>
-  <h1>Browser Automation Demo</h1>
-  <p id="status">Connecting...</p>
+    <head>
+        <title>Browser Automation Demo</title>
+    </head>
+    <body>
+        <h1>Browser Automation Demo</h1>
+        <p id="status">Connecting...</p>
 
-  <script type="module">
-    import { BrowserTabClient } from '@sitnikov/browser-automation/tab-client'
+        <script type="module">
+            import { BrowserTabClient } from "@sitnikov/browser-automation/tab-client";
 
-    const client = new BrowserTabClient('ws://localhost:3004')
+            const client = new BrowserTabClient("ws://localhost:3004");
 
-    client.onConnected = (id) => {
-      document.getElementById('status').textContent = `Connected: ${id}`
-    }
+            client.onConnected = (id) => {
+                document.getElementById("status").textContent = `Connected: ${id}`;
+            };
 
-    await client.connect()
-  </script>
-</body>
+            await client.connect();
+        </script>
+    </body>
 </html>
 ```
 

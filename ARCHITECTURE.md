@@ -24,6 +24,7 @@ The connection broker is completely reusable for ANY scenario where two parties 
 **Exports**:
 - `ConnectionBroker` - Server implementation
 - `BrokerClient` - Client SDK
+- `BrokerClientLogger` - Logger interface accepted by `BrokerClient`
 - Protocol types
 
 **Example usage beyond browsers**:
@@ -38,11 +39,13 @@ The connection broker is completely reusable for ANY scenario where two parties 
 
 **Responsibilities**:
 - `BrowserTabClient` - Browser tabs connect with role `"browser-tab"`, handle commands, auto-reconnect on disconnect
-- `BrowserMcpServer` - MCP server connects **on-demand** for each tool call and disconnects immediately
+- `BrowserAutomationClient` - Programmatic client for listing tabs and executing JS; connects **on-demand** and disconnects after each operation
+- `BrowserMcpServer` - Thin MCP adapter that exposes `BrowserAutomationClient` as MCP tools
 - Define automation protocol (execute_js commands with async/await support)
 
 **Exports**:
 - `@sitnikov/browser-automation/tab-client` - For browser code
+- `@sitnikov/browser-automation/automation-client` - Programmatic automation client
 - `@sitnikov/browser-automation/mcp-server` - For MCP server
 
 ### 3. `apps/demo/` - Demo Application
@@ -66,7 +69,7 @@ Shows how to:
 │  BrowserMcpServer               │  Implements list_tabs, execute_js
 │  (Node.js process)              │  Connects on-demand per tool call
 │                                 │
-│  Uses: BrokerClient SDK         │
+│  Uses: BrowserAutomationClient  │
 └──────────┬────────────────────┬─┘
            │                    │
            │ WebSocket          │ Discovers tabs by role
@@ -367,7 +370,8 @@ Then use tools:
 - Broker: Connection management, channel routing
 - BrokerClient: Connection lifecycle, message handling
 - BrowserTabClient: Command execution, error handling
-- BrowserMcpServer: Tool implementation, MCP protocol
+- BrowserAutomationClient: Broker communication, tab listing, JS execution
+- BrowserMcpServer: MCP wiring, tool schemas, request handlers
 
 ### Integration Tests
 
