@@ -25,6 +25,8 @@ export default defineConfig(() => ({
                 index: "src/index.ts",
                 "tab-client": "src/tab-client/index.ts",
                 "automation-client": "src/automation-client/index.ts",
+                "extension-tab-client": "src/extension-tab-client/index.ts",
+                "extension-automation-client": "src/extension-automation-client/index.ts",
                 "mcp-server": "src/mcp-server/index.ts",
                 "bin/mcp-server": "bin/mcp-server.ts",
             },

@@ -26,7 +26,13 @@
             "@sitnikov/browser-automation/automation-client": [
                 "./packages/browser-automation/src/automation-client/index.ts"
             ],
-            "@sitnikov/browser-automation/mcp-server": ["./packages/browser-automation/src/mcp-server/index.ts"]
+            "@sitnikov/browser-automation/mcp-server": ["./packages/browser-automation/src/mcp-server/index.ts"],
+            "@sitnikov/browser-automation/extension-tab-client": [
+                "./packages/browser-automation/src/extension-tab-client/index.ts"
+            ],
+            "@sitnikov/browser-automation/extension-automation-client": [
+                "./packages/browser-automation/src/extension-automation-client/index.ts"
+            ]
         }
     }
 }

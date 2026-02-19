@@ -1,0 +1,16 @@
+{
+    "manifest_version": 3,
+    "name": "Browser Automation",
+    "version": "0.1.0",
+    "description": "Connects to the connection broker so Claude can automate this browser",
+    "permissions": ["offscreen", "scripting", "tabs"],
+    "host_permissions": ["<all_urls>"],
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_title": "Browser Automation"
+    },
+    "background": {
+        "service_worker": "background/service-worker.js",
+        "type": "module"
+    }
+}

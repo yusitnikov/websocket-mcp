@@ -14,6 +14,7 @@
     "type": "module",
     "scripts": {
         "build": "nx run-many --target=vite:build --exclude=demo",
+        "watch-extension": "nx run browser-extension:dev",
         "lint": "nx run-many --target=lint",
         "typecheck": "nx run-many --target=typecheck",
         "demo": "nx run demo:serve",
@@ -43,7 +44,7 @@
         "@types/ws": "^8.18.1",
         "@vitest/ui": "^3.0.0",
         "ajv": "^8.0.0",
-        "chrome-types": "^0.1.375",
+        "chrome-types": "^0.1.415",
         "eslint": "^9.8.0",
         "eslint-config-prettier": "^10.0.0",
         "jiti": "2.4.2",
@@ -58,6 +59,7 @@
         "typescript-eslint": "^8.40.0",
         "vite": "^7.0.4",
         "vite-plugin-dts": "~4.5.0",
+        "vite-plugin-web-extension": "^4.5.0",
         "vitest": "^3.0.0"
     }
 }

@@ -21,6 +21,14 @@
         "./mcp-server": {
             "import": "./mcp-server.js",
             "types": "./mcp-server.d.ts"
+        },
+        "./extension-tab-client": {
+            "import": "./extension-tab-client.js",
+            "types": "./extension-tab-client.d.ts"
+        },
+        "./extension-automation-client": {
+            "import": "./extension-automation-client.js",
+            "types": "./extension-automation-client.d.ts"
         }
     },
     "bin": "./bin/mcp-server.js",

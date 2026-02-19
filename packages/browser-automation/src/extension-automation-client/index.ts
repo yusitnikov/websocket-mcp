@@ -1,0 +1,1 @@
+export { ExtensionAutomationClient } from "./ExtensionAutomationClient";

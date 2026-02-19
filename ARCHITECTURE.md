@@ -15,6 +15,7 @@ The connection broker is completely reusable for ANY scenario where two parties 
 **Purpose**: Reusable WebSocket broker that routes messages between clients.
 
 **Responsibilities**:
+
 - Assign unique IDs to connections
 - Group connections by role (arbitrary strings)
 - Create ephemeral channels between connections
@@ -22,12 +23,14 @@ The connection broker is completely reusable for ANY scenario where two parties 
 - **DOES NOT** know about browsers, tabs, MCP, or any specific use case
 
 **Exports**:
+
 - `ConnectionBroker` - Server implementation
 - `BrokerClient` - Client SDK
 - `BrokerClientLogger` - Logger interface accepted by `BrokerClient`
 - Protocol types
 
 **Example usage beyond browsers**:
+
 - Chat servers routing messages between users
 - Microservices discovering and calling each other
 - IoT devices communicating through a central hub
@@ -38,26 +41,47 @@ The connection broker is completely reusable for ANY scenario where two parties 
 **Purpose**: Browser automation built on top of the generic broker.
 
 **Responsibilities**:
-- `BrowserTabClient` - Browser tabs connect with role `"browser-tab"`, handle commands, auto-reconnect on disconnect
-- `BrowserAutomationClient` - Programmatic client for listing tabs and executing JS; connects **on-demand** and disconnects after each operation
-- `BrowserMcpServer` - Thin MCP adapter that exposes `BrowserAutomationClient` as MCP tools
-- Define automation protocol (execute_js commands with async/await support)
+
+- `ExtensionTabClient` - Runs in the extension's offscreen document; registers as `"browser-extension"`, handles broker commands by delegating to service worker callbacks
+- `ExtensionAutomationClient` - MCP-server-side client; talks to the extension via broker; connects on-demand and disconnects after each operation
+- `BrowserTabClient` - Browser tabs embed this and connect as `"browser-tab"` (cooperating-site model, used in demo)
+- `BrowserAutomationClient` - Talks to `BrowserTabClient`-connected tabs; same ephemeral pattern
+- `BrowserMcpServer` - Thin MCP adapter; delegates to `ExtensionAutomationClient` for `list_tabs` and `execute_js`
 
 **Exports**:
-- `@sitnikov/browser-automation/tab-client` - For browser code
-- `@sitnikov/browser-automation/automation-client` - Programmatic automation client
+
+- `@sitnikov/browser-automation/extension-tab-client` - For the extension's offscreen document
+- `@sitnikov/browser-automation/extension-automation-client` - MCP-server-side client for the extension protocol
+- `@sitnikov/browser-automation/tab-client` - For cooperating browser pages
+- `@sitnikov/browser-automation/automation-client` - MCP-server-side client for the tab protocol
 - `@sitnikov/browser-automation/mcp-server` - For MCP server
 
-### 3. `apps/demo/` - Demo Application
+### 3. `apps/browser-extension/` - Chrome Extension
 
-**Purpose**: Example browser application using `BrowserTabClient`.
+**Purpose**: Primary browser-side component. Connects to the broker and executes JS in tabs via `chrome.scripting`.
+
+**Architecture (Manifest V3)**:
+
+- `offscreen/offscreen.ts` - Holds the persistent broker WebSocket via `ExtensionTabClient`; bridges broker commands to the service worker
+- `background/service-worker.ts` - Handles `chrome.tabs.query` (list tabs) and `chrome.scripting.executeScript` (execute JS); relays between offscreen document and chrome APIs
+- `popup/` - Shows broker connection status
+- `types.ts` - Chrome runtime message types for offscreen ↔ service worker IPC
+
+**Why offscreen document**: Manifest V3 service workers are terminated after ~30s of inactivity, which would kill any WebSocket. An offscreen document maintains the persistent WebSocket connection and stays alive independently of the service worker lifecycle.
+
+### 4. `apps/demo/` - Demo Application
+
+**Purpose**: Example browser application using `BrowserTabClient` (cooperating-site model).
 
 Shows how to:
-- Connect to the broker from a browser
+
+- Connect to the broker from a browser page
 - Handle automation commands
 - Display connection status
 
 ## Communication Flow
+
+### Primary: Extension-Driven (Model A)
 
 ```
 ┌──────────────────────┐
@@ -65,41 +89,66 @@ Shows how to:
 └──────────┬───────────┘
            │ stdio
            ↓
-┌─────────────────────────────────┐
-│  BrowserMcpServer               │  Implements list_tabs, execute_js
-│  (Node.js process)              │  Connects on-demand per tool call
-│                                 │
-│  Uses: BrowserAutomationClient  │
-└──────────┬────────────────────┬─┘
-           │                    │
-           │ WebSocket          │ Discovers tabs by role
-           ↓ (ephemeral)        │ Opens channels to tabs
-           │                    │ Disconnects after each call
+┌────────────────────────────────────┐
+│  BrowserMcpServer                  │  Implements list_tabs, execute_js
+│  (Node.js process)                 │  Connects on-demand per tool call
+│                                    │
+│  Uses: ExtensionAutomationClient   │
+└──────────┬─────────────────────────┘
+           │ WebSocket (ephemeral, per call)
+           ↓
 ┌─────────────────────────────────┐
 │  ConnectionBroker               │  Generic, reusable broker
 │  (WebSocket server)             │
-│                                 │
-│  - Assigns IDs                  │
-│  - Routes messages              │
-│  - Manages channels             │
 │  - Role-agnostic                │
 │  - Payload-agnostic             │
 └──────────┬──────────────────────┘
-           │ WebSocket (multiple connections)
+           │ WebSocket (persistent, via offscreen document)
            ↓
-    ┌──────┴──────┬──────────┬──────────┐
-    ↓             ↓          ↓          ↓
-┌────────────┐ ┌────────────┐ ┌────────────┐
-│ Browser    │ │ Browser    │ │ Browser    │
-│ Tab 1      │ │ Tab 2      │ │ Tab 3      │
-│            │ │            │ │            │
-│ BrowserTab │ │ BrowserTab │ │ BrowserTab │
-│ Client     │ │ Client     │ │ Client     │
-│            │ │            │ │            │
-│ Role:      │ │ Role:      │ │ Role:      │
-│ "browser-  │ │ "browser-  │ │ "browser-  │
-│ tab"       │ │ tab"       │ │ tab"       │
-└────────────┘ └────────────┘ └────────────┘
+┌──────────────────────────────────────────────┐
+│  Chrome Extension                            │
+│                                              │
+│  offscreen.ts ─── ExtensionTabClient         │
+│       │           role: "browser-extension"  │
+│       │ chrome.runtime.sendMessage           │
+│       ↓                                      │
+│  service-worker.ts                           │
+│       │ chrome.tabs.query                    │
+│       │ chrome.scripting.executeScript       │
+│       ↓                    { world: "MAIN" } │
+│  Any browser tab (no library needed)         │
+└──────────────────────────────────────────────┘
+```
+
+### Secondary: Cooperating Sites (Model B, demo only)
+
+```
+┌──────────────────────┐
+│  Claude Desktop      │
+└──────────┬───────────┘
+           │ stdio
+           ↓
+┌─────────────────────────────────┐
+│  BrowserMcpServer               │
+│  Uses: BrowserAutomationClient  │
+└──────────┬──────────────────────┘
+           │ WebSocket (ephemeral)
+           ↓
+┌─────────────────────────────────┐
+│  ConnectionBroker               │
+└──────────┬──────────────────────┘
+           │ WebSocket (persistent, per tab)
+    ┌──────┴──────┬──────────┐
+    ↓             ↓          ↓
+┌────────────┐ ┌────────────┐ ...
+│ Browser    │ │ Browser    │
+│ Tab        │ │ Tab        │
+│ BrowserTab │ │ BrowserTab │
+│ Client     │ │ Client     │
+│ role:      │ │ role:      │
+│ "browser-  │ │ "browser-  │
+│ tab"       │ │ tab"       │
+└────────────┘ └────────────┘
 ```
 
 ## Protocol Layers
@@ -109,12 +158,14 @@ Shows how to:
 All messages include `id` (auto-increment integer) and optionally `replyTo` (for responses).
 
 **Role-based discovery:**
+
 ```
 Client → Broker: {type: "list_by_role", id: 1, role: "browser-tab"}
 Broker → Client: {type: "connections", id: 2, replyTo: 1, ids: ["uuid-1", "uuid-2", "uuid-3"]}
 ```
 
 **Channel-based communication:**
+
 ```
 Client A → Broker: {type: "open", id: 3, targetId: "uuid-2"}
 Broker → Client B: {type: "incoming_channel", id: 4, from: "uuid-a", channelId: "chan-1"}
@@ -130,30 +181,67 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 ```
 
 **Key insights**:
+
 - The broker doesn't interpret the payload - it's completely opaque
 - Every operation gets explicit success or failure response (via `replyTo`)
 - Unsolicited notifications (incoming_channel, channel_message, channel_closed_notification) have no `replyTo`
 
-### Layer 2: Browser Automation Protocol
+### Layer 2: Extension Automation Protocol (primary)
+
+**Extension commands** (sent TO the extension via broker channel):
+
+```
+{ action: "list_tabs" }
+{ action: "execute_js", tabId: number, code: string }
+```
+
+**Extension responses** (sent FROM the extension):
+
+```
+{ success: true, tabs: TabInfo[] }          // list_tabs response
+{ success: true, result: string }            // execute_js success (JSON-serialized)
+{ success: false, message, name?, stack? }   // execute_js error (Error fields)
+{ success: false, error: string }            // generic protocol error
+```
+
+**When MCP server calls `execute_js` (extension path):**
+
+1. MCP server connects to broker with role `"mcp-server"`
+2. Finds extension via `list_by_role("browser-extension")`
+3. Opens channel, sends: `{action: "execute_js", tabId: 123, code: "document.title"}`
+4. Extension offscreen document receives command, sends `{type: "execute-js", tabId, code}` to service worker via `chrome.runtime.sendMessage`
+5. Service worker calls `chrome.scripting.executeScript({ tabId, world: "MAIN", func, args: [code] })`
+6. Injected function runs `eval(code)`, awaits if Promise, serializes result or captures error fields
+7. Result (or error with `name`/`message`/`stack`) travels back through offscreen → broker → MCP server → Claude
+
+**The broker doesn't know** anything about this — it just routes opaque messages.
+
+**Key features:**
+
+- Works on any page without embedding any library
+- `eval()` inside the injected function is subject to page CSP — pages with strict `script-src` (e.g., WhatsApp) return an `EvalError`
+- Async/await: code returning a Promise is awaited automatically by the injected wrapper
+- Timeout: 30 seconds (enforced by `ExtensionAutomationClient`)
+- Full error propagation: `name`, `message`, `stack` from `Error` objects
+
+### Layer 2: Tab Client Protocol (cooperating sites, secondary)
 
 **Built on top of broker protocol:**
 
-When MCP server calls `execute_js`:
-1. MCP server connects to broker with role "mcp-server"
-2. MCP server opens channel to tab ID
-3. MCP server sends: `{action: "execute_js", code: "document.title"}`
+When MCP server calls `execute_js` (tab path):
+
+1. MCP server connects to broker with role `"mcp-server"`
+2. Opens channel to specific tab UUID
+3. Sends: `{action: "execute_js", code: "document.title"}`
 4. Tab receives message, executes code (awaits if it's a Promise)
 5. Tab sends: `{success: true, result: "\"Page Title\""}`
-6. MCP server receives result, closes channel
-7. MCP server disconnects from broker
-8. MCP server returns result to Claude
-
-**The broker doesn't know** that this is JavaScript execution - it just routes opaque messages.
+6. MCP server receives result, closes channel, disconnects
 
 **Key features:**
+
 - Async/await support: Code like `(async () => { await fetch('/api') })()` is automatically awaited
 - Timeout handling: Operations timeout after 30 seconds
-- Error reporting: Exceptions are caught and reported back with stack traces
+- Error reporting: Exceptions are caught and reported back
 - Return value handling: Undefined, functions, objects are all serialized properly
 
 ## Why This Design?
@@ -161,12 +249,14 @@ When MCP server calls `execute_js`:
 ### Problem: Browser-Specific Broker
 
 **What we could have built:**
+
 - WebSocket server specifically for browser tabs
 - Built-in knowledge of tabs, JavaScript execution, DOM manipulation
 - MCP protocol baked into the broker
 - SharedWorker management in the broker
 
 **Problems with this approach:**
+
 - Can only be used for browser automation
 - Can't reuse for other scenarios
 - Tight coupling between broker and use case
@@ -177,16 +267,19 @@ When MCP server calls `execute_js`:
 **What we actually built:**
 
 **Generic layer** (`connection-broker`):
+
 - No domain knowledge
 - Just: connections, roles, channels, messages
 - Can be reused for ANY scenario
 
 **Specific layer** (`browser-automation`):
+
 - Browser tab client
 - MCP server implementation
 - JavaScript execution protocol
 
 **Benefits**:
+
 - Connection broker is reusable
 - Clean separation of concerns
 - Easy to test each layer independently
@@ -198,21 +291,21 @@ When MCP server calls `execute_js`:
 
 ```typescript
 // User connections
-const userClient = new BrokerClient('ws://localhost:3004')
-await userClient.connect('chat-user')
+const userClient = new BrokerClient("ws://localhost:3004");
+await userClient.connect("chat-user");
 
 // Chat server
-const serverClient = new BrokerClient('ws://localhost:3004')
-await serverClient.connect('chat-server')
+const serverClient = new BrokerClient("ws://localhost:3004");
+await serverClient.connect("chat-server");
 
 // Server lists all users
-const users = await serverClient.listByRole('chat-user')
+const users = await serverClient.listByRole("chat-user");
 
 // Server opens channel to broadcast message
 for (const userId of users) {
-  const channel = await serverClient.openChannel(userId)
-  channel.send({ type: 'message', text: 'Hello everyone!' })
-  channel.close()
+    const channel = await serverClient.openChannel(userId);
+    channel.send({ type: "message", text: "Hello everyone!" });
+    channel.close();
 }
 ```
 
@@ -220,36 +313,36 @@ for (const userId of users) {
 
 ```typescript
 // Service A
-const serviceA = new BrokerClient('ws://localhost:3004')
-await serviceA.connect('payment-service')
+const serviceA = new BrokerClient("ws://localhost:3004");
+await serviceA.connect("payment-service");
 
 serviceA.onIncomingChannel = (channel) => {
-  channel.onMessage = async (payload) => {
-    if (payload.method === 'process_payment') {
-      const result = await processPayment(payload.data)
-      channel.send({ success: true, result })
-      channel.close()
-    }
-  }
-}
+    channel.onMessage = async (payload) => {
+        if (payload.method === "process_payment") {
+            const result = await processPayment(payload.data);
+            channel.send({ success: true, result });
+            channel.close();
+        }
+    };
+};
 
 // Service B
-const serviceB = new BrokerClient('ws://localhost:3004')
-await serviceB.connect('order-service')
+const serviceB = new BrokerClient("ws://localhost:3004");
+await serviceB.connect("order-service");
 
 // Call payment service
-const paymentServices = await serviceB.listByRole('payment-service')
-const channel = await serviceB.openChannel(paymentServices[0])
+const paymentServices = await serviceB.listByRole("payment-service");
+const channel = await serviceB.openChannel(paymentServices[0]);
 
 channel.send({
-  method: 'process_payment',
-  data: { amount: 100, currency: 'USD' }
-})
+    method: "process_payment",
+    data: { amount: 100, currency: "USD" },
+});
 
 channel.onMessage = (result) => {
-  console.log('Payment result:', result)
-  channel.close()
-}
+    console.log("Payment result:", result);
+    channel.close();
+};
 ```
 
 ## Key Architectural Decisions
@@ -309,18 +402,20 @@ npx tsx packages/browser-automation/bin/mcp-server.ts --broker ws://localhost:30
 ### 4. Use from Claude
 
 Configure Claude Desktop:
+
 ```json
 {
-  "mcpServers": {
-    "browser": {
-      "command": "npx",
-      "args": ["tsx", "/path/to/browser-automation/bin/mcp-server.ts", "--broker", "ws://localhost:3004", "--stdio"]
+    "mcpServers": {
+        "browser": {
+            "command": "npx",
+            "args": ["tsx", "/path/to/browser-automation/bin/mcp-server.ts", "--broker", "ws://localhost:3004", "--stdio"]
+        }
     }
-  }
 }
 ```
 
 Then use tools:
+
 - `list_tabs` - See all connected tabs
 - `execute_js` - Run JavaScript in specific tabs
 
@@ -349,19 +444,18 @@ Then use tools:
 
 ## Security Considerations
 
-⚠️ **The broker has NO authentication or authorization.**
+⚠️ **The broker has NO authentication or authorization.** See `SECURITY.md` for full threat model and planned mitigations.
 
-**For development only:**
-- Run on localhost
-- Use firewall rules to block external access
-- Only connect trusted clients
-- Don't expose to the internet
+**Current state (POC):**
 
-**For production:**
-- Add authentication layer (JWT, OAuth, etc.)
-- Implement authorization (role-based access control)
-- Use TLS for WebSocket connections
-- Rate limiting and abuse prevention
+- Any WebSocket client can connect to the broker, register with any role, list tabs, and send commands
+- No session codes, no user approval step — this is a known gap
+- Run on localhost only; use firewall rules to block external access
+
+**Planned (see SECURITY.md):**
+
+- Session code mechanism: user enters a short code into the extension popup to authorize which tabs participate
+- HMAC challenge-response to guard against role impersonation on the broker
 
 ## Testing Strategy
 

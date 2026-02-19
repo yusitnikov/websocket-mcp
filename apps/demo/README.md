@@ -1,6 +1,8 @@
 # Browser Automation Demo
 
-This demo application showcases browser automation via the generic connection broker and MCP.
+This demo application showcases the **cooperating-site model** for browser automation. Pages embed `BrowserTabClient` and connect to the broker directly — they opt into automation.
+
+> **Note:** The primary automation mechanism is the Chrome extension (`apps/browser-extension/`), which works on any site without embedding. This demo shows the cooperating-site alternative.
 
 ## What This Demo Does
 
