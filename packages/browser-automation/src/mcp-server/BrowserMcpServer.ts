@@ -15,20 +15,20 @@ import { Logger } from "./Logger";
  */
 export class BrowserMcpServer {
     private readonly server: Server;
-    private readonly logger: Logger;
+    private readonly logger: Logger | undefined;
     private readonly client: BrowserAutomationClient;
 
     /**
-     * @param logFilePath - Path to the log file
+     * @param logFilePath - Path to the log file (omit to disable logging)
      * @param brokerUrl - WebSocket URL of the connection broker
      * @param transport - MCP transport (default: stdio)
      */
     constructor(
-        logFilePath: string,
+        logFilePath: string | undefined,
         brokerUrl: string,
         private readonly transport: "stdio" | "http" = "stdio",
     ) {
-        this.logger = new Logger(logFilePath);
+        this.logger = logFilePath !== undefined ? new Logger(logFilePath) : undefined;
         this.client = new BrowserAutomationClient(brokerUrl, this.logger);
         this.server = new Server(
             {
@@ -48,7 +48,7 @@ export class BrowserMcpServer {
     async start(): Promise<void> {
         if (this.transport === "stdio") {
             await this.server.connect(new StdioServerTransport());
-            this.logger.log("MCP server running on stdio");
+            this.logger?.log("MCP server running on stdio");
         } else {
             throw new Error("HTTP transport not yet implemented");
         }
@@ -117,7 +117,7 @@ export class BrowserMcpServer {
     private async handleListTabs() {
         const ids = await this.client.listTabs();
 
-        this.logger.log(`Found ${ids.length} browser tabs`);
+        this.logger?.log(`Found ${ids.length} browser tabs`);
 
         return {
             content: [
@@ -132,12 +132,12 @@ export class BrowserMcpServer {
     private async handleExecuteJs(args: { tabId: string; code: string }) {
         const { tabId, code } = args;
 
-        this.logger.log(`Executing JS in tab ${tabId}: ${code.substring(0, 100)}...`);
+        this.logger?.log(`Executing JS in tab ${tabId}: ${code.substring(0, 100)}...`);
 
         const result = await this.client.executeJs(tabId, code);
 
         if (result.success) {
-            this.logger.log("JS execution successful");
+            this.logger?.log("JS execution successful");
 
             return {
                 content: [
@@ -148,7 +148,7 @@ export class BrowserMcpServer {
                 ],
             };
         } else {
-            this.logger.error(`JS execution failed: ${result.error}`);
+            this.logger?.error(`JS execution failed: ${result.error}`);
 
             return {
                 content: [

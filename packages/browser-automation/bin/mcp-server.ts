@@ -3,9 +3,6 @@
 import { Command } from "commander";
 // noinspection ES6PreferShortImport
 import { BrowserMcpServer } from "../src/mcp-server/BrowserMcpServer";
-import { join } from "path";
-
-const LOG_FILE = join(__dirname, "../../../logs/mcp-server.log");
 
 const program = new Command();
 
@@ -14,9 +11,10 @@ program
     .description("MCP server for browser automation via connection broker")
     .version("1.0.0")
     .option("--broker <url>", "WebSocket URL of the connection broker", "ws://localhost:3004")
+    .option("--log <file>", "Path to log file (omit to disable logging)")
     .option("--stdio", "Use stdio transport (default)", true)
     .action(async (options) => {
-        const server = new BrowserMcpServer(LOG_FILE, options.broker, "stdio");
+        const server = new BrowserMcpServer(options.log, options.broker, "stdio");
 
         try {
             await server.start();

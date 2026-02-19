@@ -55,7 +55,11 @@ await client.connect();
 From the command line:
 
 ```bash
+# Without logging
 browser-mcp-server --broker ws://localhost:3004 --stdio
+
+# With logging
+browser-mcp-server --broker ws://localhost:3004 --stdio --log /path/to/mcp-server.log
 ```
 
 Or programmatically:
@@ -63,7 +67,12 @@ Or programmatically:
 ```typescript
 import { BrowserMcpServer } from "@sitnikov/browser-automation/mcp-server";
 
+// Without logging
+const server = new BrowserMcpServer(undefined, "ws://localhost:3004", "stdio");
+
+// With logging
 const server = new BrowserMcpServer("/path/to/logs/mcp-server.log", "ws://localhost:3004", "stdio");
+
 await server.start();
 ```
 
@@ -91,11 +100,13 @@ Add to your Claude Desktop configuration:
     "mcpServers": {
         "browser": {
             "command": "browser-mcp-server",
-            "args": ["--broker", "ws://localhost:3004", "--stdio"]
+            "args": ["--broker", "ws://localhost:3004", "--stdio", "--log", "/path/to/mcp-server.log"]
         }
     }
 }
 ```
+
+The `--log` argument is optional — omit it to disable logging entirely.
 
 ## MCP Tools
 
