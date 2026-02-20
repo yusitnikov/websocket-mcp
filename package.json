@@ -11,7 +11,9 @@
     "bugs": {
         "url": "https://github.com/yusitnikov/websocket-mcp/issues"
     },
-    "workspaces": ["packages/*"],
+    "workspaces": [
+        "packages/*"
+    ],
     "type": "module",
     "scripts": {
         "build": "nx run-many --target=vite:build --exclude=demo",
@@ -23,12 +25,12 @@
         "graph": "nx graph"
     },
     "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.16.0",
+        "@modelcontextprotocol/sdk": "^1.26.0",
         "commander": "^14.0.1",
         "express": "^5.1.0",
         "tslib": "^2.3.0",
         "ws": "^8.18.3",
-        "zod": "^3.25.76"
+        "zod": "^4.3.6"
     },
     "devDependencies": {
         "@eslint/js": "^9.8.0",
