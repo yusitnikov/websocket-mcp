@@ -3,12 +3,10 @@ import type {
     BaseResponseMessage,
     BrokerMessage,
     BrokerResponse,
-    ChannelClosedNotification,
-    ChannelMessageReceived,
+    BrokerToClientProtocol,
     ClientToBrokerProtocol,
-    IncomingChannelMessage,
 } from "../protocol";
-import type { ProtocolResponse } from "@sitnikov/protocol";
+import { processRequestByProtocolImplementationMap, ProtocolResponse } from "@sitnikov/protocol";
 
 // Use a union type to handle both browser and Node.js WebSocket
 type WebSocketLike = WebSocket | import("ws").WebSocket;
@@ -297,20 +295,31 @@ export class BrokerClient {
         }
 
         // Otherwise handle as unsolicited message
-        switch (msg.type) {
-            case "incoming_channel":
-                this.handleIncoming(msg);
-                break;
-            case "channel_message":
-                this.handleChannelMessage(msg);
-                break;
-            case "channel_closed_notification":
-                this.handleChannelClosedNotification(msg);
-                break;
-            default:
-                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                this.logger?.error(`Unexpected unsolicited message type: ${(msg as BrokerMessage).type}`);
-        }
+        processRequestByProtocolImplementationMap<BrokerToClientProtocol>(msg, {
+            incoming_channel: ({ channelId, from }) => {
+                const channel = new Channel(this, channelId, from);
+                this.channels.set(channelId, channel);
+
+                this.logger?.log(`Incoming channel ${channelId} from ${from}`);
+
+                // Notify listener
+                this.onIncomingChannel?.(channel);
+            },
+            channel_message: ({ channelId, payload }) => {
+                const channel = this.channels.get(channelId);
+                if (channel) {
+                    channel.handleMessage(payload);
+                }
+            },
+            channel_closed_notification: ({ channelId }) => {
+                const channel = this.channels.get(channelId);
+                if (channel) {
+                    this.logger?.log(`Channel ${channelId} closed by other party`);
+                    channel.handleClosed();
+                    this.channels.delete(channelId);
+                }
+            },
+        });
     }
 
     private handleReply(msg: BrokerResponse & BaseResponseMessage): void {
@@ -325,34 +334,6 @@ export class BrokerClient {
 
         // Resolve with the raw message - caller handles response processing
         pending.resolve(msg);
-    }
-
-    private handleIncoming(msg: IncomingChannelMessage): void {
-        if (!this.ws) return;
-
-        const channel = new Channel(this, msg.channelId, msg.from);
-        this.channels.set(msg.channelId, channel);
-
-        this.logger?.log(`Incoming channel ${msg.channelId} from ${msg.from}`);
-
-        // Notify listener
-        this.onIncomingChannel?.(channel);
-    }
-
-    private handleChannelMessage(msg: ChannelMessageReceived): void {
-        const channel = this.channels.get(msg.channelId);
-        if (channel) {
-            channel.handleMessage(msg.payload);
-        }
-    }
-
-    private handleChannelClosedNotification(msg: ChannelClosedNotification): void {
-        const channel = this.channels.get(msg.channelId);
-        if (channel) {
-            this.logger?.log(`Channel ${msg.channelId} closed by other party`);
-            channel.handleClosed();
-            this.channels.delete(msg.channelId);
-        }
     }
 
     private handleDisconnect(): void {

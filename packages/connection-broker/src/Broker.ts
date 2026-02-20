@@ -4,14 +4,13 @@ import {
     ClientRequest,
     ClientToBrokerProtocol,
     BaseResponseMessage,
-    BrokerNotification,
-    IncomingChannelMessage,
-    ChannelMessageReceived,
     BaseMessage,
     BrokerResponse,
+    BrokerToClientProtocol,
 } from "./protocol";
 import {
     processRequestByProtocolImplementationMap,
+    ProtocolRequest,
     ProtocolSyncImplementationMap,
     ProtocolUnknownRequest,
 } from "@sitnikov/protocol";
@@ -182,7 +181,7 @@ export class ConnectionBroker {
         console.log(`Opened channel ${channelId} from ${fromId} to ${targetId}`);
 
         // Notify target about incoming channel
-        this.send<IncomingChannelMessage>(targetConn.ws, {
+        this.send(targetConn.ws, {
             type: "incoming_channel",
             from: fromId,
             channelId,
@@ -218,7 +217,7 @@ export class ConnectionBroker {
         console.log(`Routing message on channel ${channelId} from ${senderId} to ${recipientId}`);
 
         // Send message to recipient (unsolicited)
-        this.send<ChannelMessageReceived>(recipient.ws, {
+        this.send(recipient.ws, {
             type: "channel_message",
             channelId,
             payload,
@@ -263,7 +262,10 @@ export class ConnectionBroker {
         return undefined;
     }
 
-    private send<T extends BrokerNotification>(ws: WebSocket, msg: Omit<T, "id">): void;
+    private send<TypeT extends keyof BrokerToClientProtocol>(
+        ws: WebSocket,
+        msg: Omit<ProtocolRequest<BrokerToClientProtocol, TypeT>, "id">,
+    ): void;
     private send<T extends BaseResponseMessage>(ws: WebSocket, msg: Omit<T, "id">): void;
     private send(ws: WebSocket, msg: any): void {
         if (ws.readyState === WebSocket.OPEN) {

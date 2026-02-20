@@ -66,6 +66,26 @@ export type ClientToBrokerProtocol = {
     };
 };
 
+export type BrokerToClientProtocol = {
+    incoming_channel: {
+        request: {
+            channelId: string;
+            from: string;
+        };
+    };
+    channel_message: {
+        request: {
+            channelId: string;
+            payload: unknown;
+        };
+    };
+    channel_closed_notification: {
+        request: {
+            channelId: string;
+        };
+    };
+};
+
 // Client → Broker messages
 export type ClientRequest = AnyProtocolRequest<ClientToBrokerProtocol>;
 
@@ -73,27 +93,7 @@ export type ClientRequest = AnyProtocolRequest<ClientToBrokerProtocol>;
 export type BrokerResponse = AnyProtocolResponse<ClientToBrokerProtocol> | ErrorResponse;
 
 // Broker → Client unsolicited notifications (no replyTo)
-export type BrokerNotification = IncomingChannelMessage | ChannelMessageReceived | ChannelClosedNotification;
+export type BrokerNotification = AnyProtocolRequest<BrokerToClientProtocol>;
 
 // All Broker → Client messages
 export type BrokerMessage = (Exclude<BrokerResponse, void> & BaseResponseMessage) | BrokerNotification;
-
-// Notification of incoming channel (no replyTo - unsolicited)
-export interface IncomingChannelMessage extends BaseMessage {
-    type: "incoming_channel";
-    from: string;
-    channelId: string;
-}
-
-// Notification of incoming channel message (no replyTo - unsolicited)
-export interface ChannelMessageReceived extends BaseMessage {
-    type: "channel_message";
-    channelId: string;
-    payload: unknown;
-}
-
-// Unsolicited channel closed notification (when other party closes)
-export interface ChannelClosedNotification extends BaseMessage {
-    type: "channel_closed_notification";
-    channelId: string;
-}
