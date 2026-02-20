@@ -613,7 +613,7 @@ User (Claude UI)
   │ "Close my Microsoft tabs"
   │
   ▼
-MCP Server (BrowserAutomationClient)
+MCP Server (ExtensionAutomationClient)
   │
   │ start_session → session code
   │ list_tabs → approved tab metadata
@@ -661,7 +661,7 @@ User (Claude UI)
   │ "Close my Microsoft tabs"
   │
   ▼
-MCP Server (BrowserAutomationClient)
+MCP Server
   │
   │ start_session → session code
   │ list_tabs → approved tab metadata
@@ -924,12 +924,12 @@ codes but adds defense in depth.
    broker message relay perform in practice? What happens when the service worker
    sleeps mid-operation?
 
-   **Resolved:** Implemented and working. The offscreen document holds the persistent
-   WebSocket via `ExtensionTabClient`. The service worker handles `chrome.tabs.query`
-   and `chrome.scripting.executeScript` on demand; it wakes in response to
-   `chrome.runtime.sendMessage` from the offscreen document and returns to sleep after
-   responding. This is not a problem — the offscreen document keeps the broker connection
-   alive regardless of the service worker lifecycle.
+    **Resolved:** Implemented and working. The offscreen document holds the persistent
+    WebSocket via `ExtensionTabClient`. The service worker handles `chrome.tabs.query`
+    and `chrome.scripting.executeScript` on demand; it wakes in response to
+    `chrome.runtime.sendMessage` from the offscreen document and returns to sleep after
+    responding. This is not a problem — the offscreen document keeps the broker connection
+    alive regardless of the service worker lifecycle.
 
 5. **Model A: `func` parameter limitations.** `chrome.scripting.executeScript` takes
    a function reference, not a string. The MCP server sends code as a string from the
@@ -937,13 +937,13 @@ codes but adds defense in depth.
    (which runs under extension CSP, not page CSP — need to verify if this works),
    or redesigning the protocol to send structured commands instead of raw JS strings.
 
-   **Resolved:** The injected function wraps `eval(code)` where `code` is passed as
-   an `args` parameter. `eval` runs inside the page's main world (not the extension
-   context), so it is subject to the page's CSP. Pages with strict `script-src`
-   (e.g., WhatsApp) return an `EvalError` with the relevant policy violation message —
-   this is reported back as a structured error with `name`/`message`/`stack`. If
-   strict-CSP support becomes a requirement, the protocol would need to send structured
-   commands instead of raw JS strings.
+    **Resolved:** The injected function wraps `eval(code)` where `code` is passed as
+    an `args` parameter. `eval` runs inside the page's main world (not the extension
+    context), so it is subject to the page's CSP. Pages with strict `script-src`
+    (e.g., WhatsApp) return an `EvalError` with the relevant policy violation message —
+    this is reported back as a structured error with `name`/`message`/`stack`. If
+    strict-CSP support becomes a requirement, the protocol would need to send structured
+    commands instead of raw JS strings.
 
 6. **Protocol changes needed:** The broker protocol needs new message types for
    session management: `create_session`, `join_session`, `end_session`. The broker
@@ -954,9 +954,9 @@ codes but adds defense in depth.
    one first? Model B is closer to the current architecture. Model A is more
    generally useful but requires the extension to be more than a UX layer.
 
-   **Resolved:** Model A was prioritized and is now implemented as the primary path.
-   Model B (`BrowserTabClient`) remains in the codebase for the cooperating-site demo
-   but is not the primary automation mechanism.
+    **Resolved:** Model A was prioritized and is now implemented as the primary path.
+    Model B (`BrowserTabClient`) remains in the codebase for the cooperating-site demo
+    but is not the primary automation mechanism.
 
 8. **Role impersonation mitigation.** Two options identified:
    (a) Session code as out-of-band shared secret + code-derived broker role +
@@ -964,3 +964,17 @@ codes but adds defense in depth.
    (b) Reject ambiguous connections (multiple extensions) — complementary defense,
    zero friction in happy path but breaks multi-profile scenarios.
    Need to decide: use both together? Make multi-extension count configurable?
+
+   **Partially implemented:** Option (b) is in place — `ExtensionAutomationClient`
+   errors if more than 1 extension is connected, and the offscreen document enters
+   a `blocked` state if two simultaneous `approve_session` requests arrive. However,
+   the `blocked` state has no unlock mechanism yet (requires extension reload).
+   Option (a) (HMAC challenge-response) is not yet implemented.
+
+9. **Session token enforcement.** `initiate_session` issues a session token on
+   approval, but `list_tabs` and `execute_js` do not yet require a valid token.
+   The token needs to be validated before any automation commands are accepted.
+
+10. **Fine-grained per-tab approval.** Currently `initiate_session` approves all
+    tabs (all-or-nothing). The approval page should let the user select which
+    specific tabs the session is allowed to control.

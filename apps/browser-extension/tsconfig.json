@@ -3,5 +3,5 @@
     "compilerOptions": {
         "types": ["chrome-types", "vite/client"]
     },
-    "include": ["background", "offscreen", "popup", "vite.config.ts"]
+    "include": ["approval", "background", "offscreen", "popup", "vite.config.ts"]
 }

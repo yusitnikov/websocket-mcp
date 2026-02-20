@@ -1,0 +1,16 @@
+{
+    "name": "protocol",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "packages/protocol/src",
+    "projectType": "library",
+    "targets": {
+        "build": {
+            "executor": "@nx/vite:build",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/packages/protocol"
+            }
+        }
+    },
+    "tags": []
+}

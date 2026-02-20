@@ -1,17 +1,14 @@
 import { Channel } from "./Channel";
 import type {
+    BaseResponseMessage,
     BrokerMessage,
     BrokerResponse,
     ChannelClosedNotification,
     ChannelMessageReceived,
-    ChannelOpenedMessage,
-    ClientMessage,
-    ClientMessageInput,
-    ConnectionsMessage,
-    ErrorResponse,
+    ClientToBrokerProtocol,
     IncomingChannelMessage,
-    RegisteredMessage,
 } from "../protocol";
+import type { ProtocolResponse } from "@sitnikov/protocol";
 
 // Use a union type to handle both browser and Node.js WebSocket
 type WebSocketLike = WebSocket | import("ws").WebSocket;
@@ -96,7 +93,10 @@ export class BrokerClient {
      * Returns the assigned message ID.
      * Throws if WebSocket is not connected or not in OPEN state.
      */
-    send(msg: ClientMessageInput): number {
+    send<TypeT extends keyof ClientToBrokerProtocol>(
+        type: TypeT,
+        msg: Omit<ClientToBrokerProtocol[TypeT]["request"], "id" | "type">,
+    ): number {
         if (!this.ws) {
             throw new Error("Not connected to broker");
         }
@@ -111,10 +111,8 @@ export class BrokerClient {
 
         // Generate ID and create full message
         const id = this.nextMessageId++;
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        const fullMsg: ClientMessage = { ...msg, id } as ClientMessage;
 
-        this.ws.send(JSON.stringify(fullMsg));
+        this.ws.send(JSON.stringify({ ...msg, type, id }));
         return id;
     }
 
@@ -124,26 +122,28 @@ export class BrokerClient {
      * Handling the response is the responsibility of the caller.
      * @internal
      */
-    async sendWithResponse<T extends BrokerResponse>(
-        msg: ClientMessageInput,
-        timeout: number,
-        errorMessage: string,
-    ): Promise<T> {
-        if (!this.ws) {
-            throw new Error("Not connected to broker");
-        }
+    async sendWithResponse<TypeT extends keyof ClientToBrokerProtocol>(
+        type: TypeT,
+        msg: Omit<ClientToBrokerProtocol[TypeT]["request"], "id" | "type">,
+        timeout = 3000,
+    ): Promise<ProtocolResponse<ClientToBrokerProtocol, TypeT>> {
+        const messageId = this.send(type, msg);
 
-        const messageId = this.send(msg);
-
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        return (await new Promise<BrokerResponse>((resolve, reject) => {
+        const result = await new Promise<BrokerResponse>((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.pendingRequests.delete(messageId);
-                reject(new Error(errorMessage));
+                reject(new Error(`Operation timed out after ${timeout / 1000} seconds`));
             }, timeout);
 
             this.pendingRequests.set(messageId, { resolve, reject, timer });
-        })) as T;
+        });
+
+        if (result && "type" in result && result.type === "error") {
+            throw new Error(result.error);
+        }
+
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return result as ProtocolResponse<ClientToBrokerProtocol, TypeT>;
     }
 
     /**
@@ -158,9 +158,9 @@ export class BrokerClient {
      * Maintain a persistent connection with automatic reconnection on disconnect.
      * Uses exponential backoff: 1s, 2s, 4s, 8s, 16s, up to 30s max.
      */
-    async maintainConnection(): Promise<void> {
+    maintainConnection(): void {
         this.shouldMaintainConnection = true;
-        await this.doConnect();
+        this.doConnect().catch();
     }
 
     private async doConnect(): Promise<void> {
@@ -183,29 +183,17 @@ export class BrokerClient {
 
             ws.onopen = async () => {
                 try {
-                    const response = await this.sendWithResponse<RegisteredMessage | ErrorResponse>(
-                        {
-                            type: "register",
-                            role: this.role,
-                        },
-                        5000,
-                        "Registration timeout",
-                    );
+                    const { connectionId } = await this.sendWithResponse("register", { role: this.role });
 
-                    clearTimeout(connectionTimeout);
-
-                    if (response.type === "registered") {
-                        this.reconnectAttempts = 0;
-                        this.myId = response.connectionId;
-                        this.logger?.log(`Registered with broker, ID: ${response.connectionId}`);
-                        this.onConnected?.();
-                        resolve();
-                    } else {
-                        reject(new Error(response.error));
-                    }
+                    this.reconnectAttempts = 0;
+                    this.myId = connectionId;
+                    this.logger?.log(`Registered with broker, ID: ${connectionId}`);
+                    this.onConnected?.();
+                    resolve();
                 } catch (error) {
-                    clearTimeout(connectionTimeout);
                     reject(error);
+                } finally {
+                    clearTimeout(connectionTimeout);
                 }
             };
 
@@ -254,20 +242,8 @@ export class BrokerClient {
      * Returns an array of connection IDs.
      */
     async listByRole(role: string): Promise<string[]> {
-        const response = await this.sendWithResponse<ConnectionsMessage | ErrorResponse>(
-            {
-                type: "list_by_role",
-                role,
-            },
-            5000,
-            "listByRole timeout",
-        );
-
-        if (response.type === "connections") {
-            return response.ids;
-        } else {
-            throw new Error(response.error);
-        }
+        const { ids } = await this.sendWithResponse("list_by_role", { role });
+        return ids;
     }
 
     /**
@@ -275,23 +251,12 @@ export class BrokerClient {
      * Returns a Channel object that can be used to send/receive messages.
      */
     async openChannel(targetId: string): Promise<Channel> {
-        const response = await this.sendWithResponse<ChannelOpenedMessage | ErrorResponse>(
-            {
-                type: "open",
-                targetId,
-            },
-            5000,
-            "openChannel timeout",
-        );
+        const { channelId } = await this.sendWithResponse("open", { targetId });
 
-        if (response.type === "channel_opened") {
-            const channel = new Channel(this, response.channelId, targetId);
-            this.channels.set(response.channelId, channel);
-            this.logger?.log(`Channel ${response.channelId} opened to ${targetId}`);
-            return channel;
-        } else {
-            throw new Error(response.error);
-        }
+        const channel = new Channel(this, channelId, targetId);
+        this.channels.set(channelId, channel);
+        this.logger?.log(`Channel ${channelId} opened to ${targetId}`);
+        return channel;
     }
 
     /**
@@ -348,7 +313,7 @@ export class BrokerClient {
         }
     }
 
-    private handleReply(msg: BrokerResponse): void {
+    private handleReply(msg: BrokerResponse & BaseResponseMessage): void {
         const pending = this.pendingRequests.get(msg.replyTo);
         if (!pending) {
             this.logger?.error(`Received reply for unknown request: ${msg.replyTo}`);

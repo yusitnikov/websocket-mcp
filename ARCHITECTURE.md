@@ -44,16 +44,12 @@ The connection broker is completely reusable for ANY scenario where two parties 
 
 - `ExtensionTabClient` - Runs in the extension's offscreen document; registers as `"browser-extension"`, handles broker commands by delegating to service worker callbacks
 - `ExtensionAutomationClient` - MCP-server-side client; talks to the extension via broker; connects on-demand and disconnects after each operation
-- `BrowserTabClient` - Browser tabs embed this and connect as `"browser-tab"` (cooperating-site model, used in demo)
-- `BrowserAutomationClient` - Talks to `BrowserTabClient`-connected tabs; same ephemeral pattern
-- `BrowserMcpServer` - Thin MCP adapter; delegates to `ExtensionAutomationClient` for `list_tabs` and `execute_js`
+- `BrowserMcpServer` - Thin MCP adapter; delegates to `ExtensionAutomationClient` for `list_tabs`, `execute_js`, and `initiate_session`
 
 **Exports**:
 
 - `@sitnikov/browser-automation/extension-tab-client` - For the extension's offscreen document
 - `@sitnikov/browser-automation/extension-automation-client` - MCP-server-side client for the extension protocol
-- `@sitnikov/browser-automation/tab-client` - For cooperating browser pages
-- `@sitnikov/browser-automation/automation-client` - MCP-server-side client for the tab protocol
 - `@sitnikov/browser-automation/mcp-server` - For MCP server
 
 ### 3. `apps/browser-extension/` - Chrome Extension
@@ -62,10 +58,11 @@ The connection broker is completely reusable for ANY scenario where two parties 
 
 **Architecture (Manifest V3)**:
 
-- `offscreen/offscreen.ts` - Holds the persistent broker WebSocket via `ExtensionTabClient`; bridges broker commands to the service worker
-- `background/service-worker.ts` - Handles `chrome.tabs.query` (list tabs) and `chrome.scripting.executeScript` (execute JS); relays between offscreen document and chrome APIs
+- `offscreen/offscreen.ts` - Holds the persistent broker WebSocket via `ExtensionTabClient`; bridges broker commands to service worker; owns the approval state machine
+- `background/service-worker.ts` - Handles `chrome.tabs.query` (list tabs), `chrome.scripting.executeScript` (execute JS), and approval tab management; relays messages between all extension contexts
+- `approval/approval.ts` + `approval/approval.html` - Shown to the user when a session is initiated; polls offscreen for state, shows session code, lets user approve or reject
 - `popup/` - Shows broker connection status
-- `types.ts` - Chrome runtime message types for offscreen ↔ service worker IPC
+- `protocol.ts` - Typed chrome runtime message contracts for all inter-context IPC (replaces untyped `types.ts`)
 
 **Why offscreen document**: Manifest V3 service workers are terminated after ~30s of inactivity, which would kill any WebSocket. An offscreen document maintains the persistent WebSocket connection and stays alive independently of the service worker lifecycle.
 
@@ -80,8 +77,6 @@ Shows how to:
 - Display connection status
 
 ## Communication Flow
-
-### Primary: Extension-Driven (Model A)
 
 ```
 ┌──────────────────────┐
@@ -118,37 +113,6 @@ Shows how to:
 │       ↓                    { world: "MAIN" } │
 │  Any browser tab (no library needed)         │
 └──────────────────────────────────────────────┘
-```
-
-### Secondary: Cooperating Sites (Model B, demo only)
-
-```
-┌──────────────────────┐
-│  Claude Desktop      │
-└──────────┬───────────┘
-           │ stdio
-           ↓
-┌─────────────────────────────────┐
-│  BrowserMcpServer               │
-│  Uses: BrowserAutomationClient  │
-└──────────┬──────────────────────┘
-           │ WebSocket (ephemeral)
-           ↓
-┌─────────────────────────────────┐
-│  ConnectionBroker               │
-└──────────┬──────────────────────┘
-           │ WebSocket (persistent, per tab)
-    ┌──────┴──────┬──────────┐
-    ↓             ↓          ↓
-┌────────────┐ ┌────────────┐ ...
-│ Browser    │ │ Browser    │
-│ Tab        │ │ Tab        │
-│ BrowserTab │ │ BrowserTab │
-│ Client     │ │ Client     │
-│ role:      │ │ role:      │
-│ "browser-  │ │ "browser-  │
-│ tab"       │ │ tab"       │
-└────────────┘ └────────────┘
 ```
 
 ## Protocol Layers
@@ -193,6 +157,7 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 ```
 { action: "list_tabs" }
 { action: "execute_js", tabId: number, code: string }
+{ action: "approve_session", sessionCode: string }
 ```
 
 **Extension responses** (sent FROM the extension):
@@ -201,6 +166,8 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 { success: true, tabs: TabInfo[] }          // list_tabs response
 { success: true, result: string }            // execute_js success (JSON-serialized)
 { success: false, message, name?, stack? }   // execute_js error (Error fields)
+{ success: true, sessionToken: string }      // approve_session: user approved
+{ success: false }                           // approve_session: user rejected or blocked
 { success: false, error: string }            // generic protocol error
 ```
 
@@ -209,7 +176,7 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 1. MCP server connects to broker with role `"mcp-server"`
 2. Finds extension via `list_by_role("browser-extension")`
 3. Opens channel, sends: `{action: "execute_js", tabId: 123, code: "document.title"}`
-4. Extension offscreen document receives command, sends `{type: "execute-js", tabId, code}` to service worker via `chrome.runtime.sendMessage`
+4. Extension offscreen document receives command, sends to service worker via `chrome.runtime`
 5. Service worker calls `chrome.scripting.executeScript({ tabId, world: "MAIN", func, args: [code] })`
 6. Injected function runs `eval(code)`, awaits if Promise, serializes result or captures error fields
 7. Result (or error with `name`/`message`/`stack`) travels back through offscreen → broker → MCP server → Claude
@@ -223,6 +190,25 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 - Async/await: code returning a Promise is awaited automatically by the injected wrapper
 - Timeout: 30 seconds (enforced by `ExtensionAutomationClient`)
 - Full error propagation: `name`, `message`, `stack` from `Error` objects
+
+**When MCP server calls `initiate_session`:**
+
+1. LLM generates a short human-readable session code and calls `initiate_session`
+2. `ExtensionAutomationClient` enforces exactly 1 connected extension (multiple → error, suspected impersonation attack)
+3. Opens broker channel to extension, sends `{ action: "approve_session", sessionCode }`
+4. Offscreen document checks approval state machine:
+   - `blocked` → rejects immediately
+   - `pending` → duplicate request detected → transitions to `blocked`, rejects both
+   - `idle` → transitions to `pending`, asks service worker to open approval tab + focus window
+5. Approval page opens; polls offscreen (via service worker) for state every 200ms
+6. Once `pending`, page shows the session code with Approve/Reject buttons; keeps polling every 500ms to detect `blocked` state
+7. User approves → offscreen generates a UUID session token, resolves with `{ success: true, sessionToken }`
+8. User rejects or closes tab → offscreen resolves with `{ success: false }`
+9. If `blocked` detected while page is open → buttons disabled, security warning shown
+10. Result returns: offscreen → broker → `ExtensionAutomationClient` → MCP server → LLM
+11. Timeout: 120 seconds (enforced by `ExtensionAutomationClient`)
+
+**Blocked state**: Triggered when two simultaneous `approve_session` requests arrive. All subsequent requests are rejected until the extension is reloaded. (TODO: add unlock mechanism.)
 
 ### Layer 2: Tab Client Protocol (cooperating sites, secondary)
 
@@ -416,7 +402,8 @@ Configure Claude Desktop:
 
 Then use tools:
 
-- `list_tabs` - See all connected tabs
+- `initiate_session` - Show an approval dialog in the browser; returns session token on approval
+- `list_tabs` - See all open browser tabs
 - `execute_js` - Run JavaScript in specific tabs
 
 ## Future Extensions
@@ -446,39 +433,15 @@ Then use tools:
 
 ⚠️ **The broker has NO authentication or authorization.** See `SECURITY.md` for full threat model and planned mitigations.
 
-**Current state (POC):**
+**Current state:**
 
-- Any WebSocket client can connect to the broker, register with any role, list tabs, and send commands
-- No session codes, no user approval step — this is a known gap
+- The broker has no authentication — any WebSocket client can connect and register with any role
+- `initiate_session` requires explicit user approval via the approval page (in-progress — session token is issued but not yet enforced on `list_tabs`/`execute_js`; fine-grained per-tab control is also TODO)
+- The extension rejects simultaneous `approve_session` requests as a suspected attack
 - Run on localhost only; use firewall rules to block external access
 
 **Planned (see SECURITY.md):**
 
-- Session code mechanism: user enters a short code into the extension popup to authorize which tabs participate
-- HMAC challenge-response to guard against role impersonation on the broker
-
-## Testing Strategy
-
-### Unit Tests
-
-- Broker: Connection management, channel routing
-- BrokerClient: Connection lifecycle, message handling
-- BrowserTabClient: Command execution, error handling
-- BrowserAutomationClient: Broker communication, tab listing, JS execution
-- BrowserMcpServer: MCP wiring, tool schemas, request handlers
-
-### Integration Tests
-
-- End-to-end flow: Claude → MCP Server → Broker → Browser Tab → Response
-- Multiple tabs, multiple channels
-- Error scenarios: disconnects, timeouts, invalid IDs
-
-### Manual Testing
-
-- Use the demo app to verify browser automation
-- Test with Claude Desktop for real-world usage
-- Stress test with many tabs and concurrent requests
-
-## License
-
-MIT
+- Enforce session token on `list_tabs` and `execute_js`
+- Fine-grained per-tab approval
+- HMAC challenge-response to cryptographically guard against role impersonation on the broker

@@ -7,14 +7,14 @@ import { nxCopyAssetsPlugin } from "@nx/vite/plugins/nx-copy-assets.plugin";
 
 export default defineConfig(() => ({
     root: __dirname,
-    cacheDir: "../../node_modules/.vite/packages/browser-automation",
+    cacheDir: "../../node_modules/.vite/packages/protocol",
     plugins: [
         nxViteTsPaths(),
         nxCopyAssetsPlugin(["README.md", "../../LICENSE.md"]),
         dts({ entryRoot: "src", tsconfigPath: path.join(__dirname, "tsconfig.lib.json"), pathsToAliases: false }),
     ],
     build: {
-        outDir: "../../dist/packages/browser-automation",
+        outDir: "../../dist/packages/protocol",
         emptyOutDir: true,
         reportCompressedSize: true,
         commonjsOptions: {
@@ -23,25 +23,9 @@ export default defineConfig(() => ({
         lib: {
             entry: {
                 index: "src/index.ts",
-                "extension-tab-client": "src/extension-tab-client/index.ts",
-                "extension-automation-client": "src/extension-automation-client/index.ts",
-                "mcp-server": "src/mcp-server/index.ts",
-                "bin/mcp-server": "bin/mcp-server.ts",
             },
-            name: "browser-automation",
+            name: "protocol",
             formats: ["es" as const],
-        },
-        rollupOptions: {
-            external: [
-                /^@sitnikov\/connection-broker(\/.+)?$/,
-                /^@modelcontextprotocol\/sdk(\/.+)?$/,
-                "commander",
-                "fs",
-                "path",
-                "url",
-                "ws",
-                /^node:/,
-            ],
         },
     },
 }));

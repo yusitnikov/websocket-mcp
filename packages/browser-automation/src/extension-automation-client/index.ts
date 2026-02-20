@@ -1,1 +1,1 @@
-export { ExtensionAutomationClient } from "./ExtensionAutomationClient";
+export * from "./ExtensionAutomationClient";

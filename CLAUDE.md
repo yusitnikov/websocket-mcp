@@ -77,7 +77,7 @@ See `ARCHITECTURE.md` for full details. Key points:
 
 3. **BrowserMcpServer** (`src/mcp-server/`)
     - Thin MCP adapter that delegates to `ExtensionAutomationClient`
-    - Implements `list_tabs` and `execute_js` tools
+    - Implements `list_tabs`, `execute_js`, and `initiate_session` tools
 
 **Extension protocol flow** (example for execute_js):
 
@@ -92,29 +92,19 @@ See `ARCHITECTURE.md` for full details. Key points:
 
 **Important CSP note:** `chrome.scripting.executeScript` with `func` bypasses page CSP for the injection itself. But `eval()` _inside_ the injected function is still subject to page CSP — it will fail on pages with strict `script-src` (e.g., WhatsApp). The error is reported back as a structured `EvalError`.
 
-**Cooperating-site path (Model B, secondary):**
-
-- **BrowserTabClient** (`src/tab-client/`) — browser tabs embed this and connect to broker directly with role `"browser-tab"`
-- **BrowserAutomationClient** (`src/automation-client/`) — talks to tabs via broker (same ephemeral pattern)
-- Used in the demo app; not the primary extension flow
-
 ### Chrome Extension (`apps/browser-extension/`)
 
 **Architecture**: Manifest V3 with offscreen document for persistent WebSocket.
 
 **Components**:
 
-- `background/service-worker.ts` — handles tab listing (`chrome.tabs.query`) and JS execution (`chrome.scripting.executeScript`); relays messages to/from offscreen document
-- `offscreen/offscreen.ts` — holds the persistent broker WebSocket via `ExtensionTabClient`; bridges broker commands to service worker via `chrome.runtime.sendMessage`
+- `background/service-worker.ts` — handles tab listing, JS execution, approval tab management; relays messages between extension contexts
+- `offscreen/offscreen.ts` — holds the persistent broker WebSocket via `ExtensionTabClient`; owns the approval state machine
+- `approval/approval.ts` + `approval/approval.html` — shown to the user when a session is initiated; user approves or rejects
 - `popup/` — connection status UI
-- `types.ts` — chrome runtime message types for offscreen ↔ service worker IPC
+- `protocol.ts` — typed chrome runtime message contracts for all inter-context IPC
 
-**Key manifest permissions**: `"offscreen"`, `"scripting"`, `"tabs"`, `"host_permissions": ["<all_urls>"]`
-
-**Message flow** (offscreen ↔ service worker):
-
-- `{ type: "list-tabs" }` → service worker queries `chrome.tabs`, returns tab array
-- `{ type: "execute-js", tabId, code }` → service worker calls `chrome.scripting.executeScript`, returns `ExecuteJsSuccess | ExecuteJsError`
+**Key manifest permissions**: `"offscreen"`, `"scripting"`, `"tabs"`, `"windows"`, `"host_permissions": ["<all_urls>"]`
 
 ### Demo Application (`apps/demo/`)
 
@@ -168,6 +158,10 @@ See `ARCHITECTURE.md` for full details. Key points:
 - `@modelcontextprotocol/sdk` - MCP protocol implementation
 - `ws` - WebSocket server/client
 - `typescript`, `vite` - Build tooling
+
+## Context Notes
+
+- **Claude runs as a CLI tool (MCP server), not in a browser tab.** There is no "Claude tab" in the browser. The user interacts with Claude via a terminal/IDE, not a browser page.
 
 ## Important: What NOT to Do
 

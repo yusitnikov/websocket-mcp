@@ -10,112 +10,73 @@
  * Every message has a unique `id` field (auto-increment integer).
  * Messages that are direct responses have a `replyTo` field referencing the request message ID.
  */
+import { AnyProtocolRequest, AnyProtocolResponse } from "@sitnikov/protocol";
 
 // Base message structure
-interface BaseMessage {
+export interface BaseMessage {
     id: number; // Auto-increment message ID
 }
 
 // Base response message structure (includes replyTo field)
-interface BaseResponseMessage extends BaseMessage {
+export interface BaseResponseMessage extends BaseMessage {
     replyTo: number; // Reference to request message ID
 }
 
-// Base for success responses (extend this when there are additional props)
-type BaseSuccessResponse = BaseResponseMessage;
-
-// Base for error responses (extend this when there are additional props)
-interface BaseErrorResponse extends BaseResponseMessage {
+// Error message
+export interface ErrorResponse {
+    type: "error";
     error: string;
 }
 
-// Use directly in the union when there are no additional props
-export interface SuccessResponse extends BaseSuccessResponse {
-    type: "success";
-}
-
-// Use directly in the union when there are no additional props
-export interface ErrorResponse extends BaseErrorResponse {
-    type: "error";
-}
+export type ClientToBrokerProtocol = {
+    register: {
+        request: {
+            role: string;
+        };
+        response: {
+            connectionId: string;
+        };
+    };
+    list_by_role: {
+        request: {
+            role: string;
+        };
+        response: {
+            ids: string[];
+        };
+    };
+    open: {
+        request: {
+            targetId: string;
+        };
+        response: {
+            channelId: string;
+        };
+    };
+    message: {
+        request: {
+            channelId: string;
+            payload: unknown;
+        };
+    };
+    close: {
+        request: {
+            channelId: string;
+        };
+    };
+};
 
 // Client → Broker messages
-export type ClientMessage =
-    | RegisterMessage
-    | ListByRoleMessage
-    | OpenChannelMessage
-    | ChannelMessage
-    | CloseChannelMessage;
-
-// Client → Broker messages (before ID assignment)
-// We omit 'id' from each member of the union to preserve discriminated union
-export type ClientMessageInput =
-    | Omit<RegisterMessage, "id">
-    | Omit<ListByRoleMessage, "id">
-    | Omit<OpenChannelMessage, "id">
-    | Omit<ChannelMessage, "id">
-    | Omit<CloseChannelMessage, "id">;
-
-export interface RegisterMessage extends BaseMessage {
-    type: "register";
-    role: string;
-}
-
-export interface ListByRoleMessage extends BaseMessage {
-    type: "list_by_role";
-    role: string;
-}
-
-export interface OpenChannelMessage extends BaseMessage {
-    type: "open";
-    targetId: string;
-}
-
-export interface ChannelMessage extends BaseMessage {
-    type: "message";
-    channelId: string;
-    payload: unknown;
-}
-
-export interface CloseChannelMessage extends BaseMessage {
-    type: "close";
-    channelId: string;
-}
+export type ClientRequest = AnyProtocolRequest<ClientToBrokerProtocol>;
 
 // Broker → Client response messages (always have replyTo)
-export type BrokerResponse =
-    | RegisteredMessage
-    | ConnectionsMessage
-    | ChannelOpenedMessage
-    | SuccessResponse
-    | ErrorResponse;
+export type BrokerResponse = AnyProtocolResponse<ClientToBrokerProtocol> | ErrorResponse;
 
 // Broker → Client unsolicited notifications (no replyTo)
-export type BrokerNotification =
-    | IncomingChannelMessage
-    | ChannelMessageReceived
-    | ChannelClosedNotification;
+export type BrokerNotification = IncomingChannelMessage | ChannelMessageReceived | ChannelClosedNotification;
 
 // All Broker → Client messages
-export type BrokerMessage = BrokerResponse | BrokerNotification;
-
-// Responses to 'register' (expect replyTo)
-export interface RegisteredMessage extends BaseSuccessResponse {
-    type: "registered";
-    connectionId: string;
-}
-
-// Responses to 'list_by_role' (expect replyTo)
-export interface ConnectionsMessage extends BaseSuccessResponse {
-    type: "connections";
-    ids: string[];
-}
-
-// Responses to 'open' (expect replyTo)
-export interface ChannelOpenedMessage extends BaseSuccessResponse {
-    type: "channel_opened";
-    channelId: string;
-}
+export type BrokerMessage = (Exclude<BrokerResponse, void> & BaseResponseMessage) | BrokerNotification;
 
 // Notification of incoming channel (no replyTo - unsolicited)
 export interface IncomingChannelMessage extends BaseMessage {

@@ -1,17 +1,33 @@
+import { AnyProtocolRequest, AnyProtocolResponse } from "@sitnikov/protocol";
+
 // Commands sent TO the extension
-export interface ListTabsCommand {
-    action: "list_tabs";
-}
+export type ExtensionAutomationProtocol = {
+    list_tabs: {
+        response: ListTabsSuccess;
+    };
+    execute_js: {
+        request: {
+            tabId: number; // Chrome tab ID (number)
+            code: string;
+        };
+        response: ExecuteJsResponse;
+    };
+    approve_session: {
+        request: {
+            sessionCode: string;
+        };
+        response: ApproveSessionResponse;
+    };
+};
 
-export interface ExecuteJsCommand {
-    action: "execute_js";
-    tabId: number; // Chrome tab ID (number)
-    code: string;
-}
-
-export type ExtensionCommand = ListTabsCommand | ExecuteJsCommand;
+export type ExtensionRequest = AnyProtocolRequest<ExtensionAutomationProtocol>;
 
 // Responses sent FROM the extension
+export interface ExtensionError {
+    type: "error";
+    message: string;
+}
+
 export interface TabInfo {
     tabId: number;
     title: string;
@@ -19,7 +35,6 @@ export interface TabInfo {
 }
 
 export interface ListTabsSuccess {
-    success: true;
     tabs: TabInfo[];
 }
 
@@ -35,9 +50,17 @@ export interface ExecuteJsError {
     stack?: string;
 }
 
-export interface ExtensionError {
-    success: false;
-    error: string;
+export type ExecuteJsResponse = ExecuteJsSuccess | ExecuteJsError;
+
+export interface ApproveSessionSuccess {
+    success: true;
+    sessionToken: string;
 }
 
-export type ExtensionResponse = ListTabsSuccess | ExecuteJsSuccess | ExecuteJsError | ExtensionError;
+export interface ApproveSessionRejected {
+    success: false;
+}
+
+export type ApproveSessionResponse = ApproveSessionSuccess | ApproveSessionRejected;
+
+export type ExtensionResponse = AnyProtocolResponse<ExtensionAutomationProtocol> | ExtensionError;

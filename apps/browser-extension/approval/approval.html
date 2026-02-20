@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Approval</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: system-ui, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: #242424;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 40px;
+            width: 480px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 32px;
+        }
+
+        .session-code {
+            font-family: monospace;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: #fff;
+            background: #111;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 16px 24px;
+            margin-bottom: 32px;
+            display: inline-block;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 28px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .btn-approve {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .btn-reject {
+            background: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+        }
+
+        .status {
+            font-size: 13px;
+            color: #666;
+            margin-top: 24px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Automation Session Request</h1>
+        <p class="subtitle">An automation session is requesting access to your browser.<br>Confirm the session code matches what you were shown.</p>
+        <div class="session-code" id="session-code">—</div>
+        <div class="actions">
+            <button class="btn-approve" id="btn-approve" disabled>Approve (All Tabs)</button>
+            <button class="btn-reject" id="btn-reject" disabled>Reject</button>
+        </div>
+        <p class="status" id="status">Loading…</p>
+    </div>
+    <script type="module" src="./approval.ts"></script>
+</body>
+</html>

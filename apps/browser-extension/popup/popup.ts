@@ -1,23 +1,17 @@
-import type { GetStatusMessage, StatusMessage } from "../types";
+import { ForwardedToPopupProtocol, getSendMessage, PopupToWorkerProtocol, processIncomingMessages } from "../protocol";
 
-function requireElement(id: string): HTMLElement {
-    const el = document.getElementById(id);
-    if (!el) throw new Error(`Element #${id} not found`);
-    return el;
-}
+// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+const statusEl = document.getElementById("status")!;
+// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+const connectionIdEl = document.getElementById("connection-id")!;
 
-const statusEl = requireElement("status");
-const connectionIdEl = requireElement("connection-id");
+const sendMessageToWorker = getSendMessage<PopupToWorkerProtocol>();
 
-function isStatusMessage(message: unknown): message is StatusMessage {
-    return typeof message === "object" && message !== null && "type" in message && message.type === "broker-status";
-}
-
-function applyStatus(connected: boolean, connectionId?: string): void {
-    if (connected) {
+function applyStatus(connectionId?: string): void {
+    if (connectionId) {
         statusEl.textContent = "Connected";
         statusEl.className = "status connected";
-        connectionIdEl.textContent = connectionId ?? "—";
+        connectionIdEl.textContent = connectionId;
     } else {
         statusEl.textContent = "Disconnected";
         statusEl.className = "status disconnected";
@@ -26,22 +20,14 @@ function applyStatus(connected: boolean, connectionId?: string): void {
 }
 
 // Listen for live status updates pushed from offscreen → service worker → popup
-chrome.runtime.onMessage.addListener((message: unknown): undefined => {
-    console.log("Got message!", message);
-    if (isStatusMessage(message)) {
-        applyStatus(message.connected, message.connectionId);
-    }
-    return undefined;
+processIncomingMessages<ForwardedToPopupProtocol>({
+    broker_status: ({ connectionId }) => applyStatus(connectionId),
 });
 
 // Query current status on popup open
-const request: GetStatusMessage = { type: "get-broker-status" };
-chrome.runtime
-    .sendMessage(request)
-    .then((response: unknown) => {
-        if (isStatusMessage(response)) {
-            applyStatus(response.connected, response.connectionId);
-        }
+sendMessageToWorker({ type: "get_broker_status" })
+    .then((response) => {
+        applyStatus(response.connectionId);
     })
     .catch(() => {
         // Offscreen document may not be ready yet

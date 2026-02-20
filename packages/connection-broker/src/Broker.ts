@@ -1,14 +1,20 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { randomUUID } from "crypto";
-import type {
-    ClientMessage,
-    BrokerMessage,
-    RegisterMessage,
-    ListByRoleMessage,
-    OpenChannelMessage,
-    ChannelMessage,
-    CloseChannelMessage,
+import {
+    ClientRequest,
+    ClientToBrokerProtocol,
+    BaseResponseMessage,
+    BrokerNotification,
+    IncomingChannelMessage,
+    ChannelMessageReceived,
+    BaseMessage,
+    BrokerResponse,
 } from "./protocol";
+import {
+    processRequestByProtocolImplementationMap,
+    ProtocolSyncImplementationMap,
+    ProtocolUnknownRequest,
+} from "@sitnikov/protocol";
 
 interface Connection {
     role: string;
@@ -90,7 +96,6 @@ export class ConnectionBroker {
                         if (other) {
                             this.send(other.ws, {
                                 type: "channel_closed_notification",
-                                id: this.generateMessageId(),
                                 channelId,
                             });
                         }
@@ -106,135 +111,100 @@ export class ConnectionBroker {
         });
     }
 
-    private handleMessage(ws: WebSocket, msg: ClientMessage): void {
-        switch (msg.type) {
-            case "register":
-                this.handleRegister(ws, msg);
-                break;
-            case "list_by_role":
-                this.handleListByRole(ws, msg);
-                break;
-            case "open":
-                this.handleOpenChannel(ws, msg);
-                break;
-            case "message":
-                this.handleChannelMessage(ws, msg);
-                break;
-            case "close":
-                this.handleCloseChannel(ws, msg);
-                break;
-            default:
-                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                console.error(`Unknown message type: ${(msg as ClientMessage).type}`);
-                ws.close(1003, "Unknown message type");
-        }
-    }
+    private handleMessage(ws: WebSocket, msg: ClientRequest & BaseMessage): void {
+        const implementationMap: ProtocolSyncImplementationMap<ClientToBrokerProtocol> = {
+            register: ({ role }) => ({
+                connectionId: this.handleRegister(ws, role),
+            }),
+            list_by_role: ({ role }) => ({ ids: this.handleListByRole(role) }),
+            open: ({ targetId }) => ({ channelId: this.handleOpenChannel(ws, targetId) }),
+            message: ({ channelId, payload }) => this.handleChannelMessage(ws, channelId, payload),
+            close: ({ channelId }) => this.handleCloseChannel(ws, channelId),
+        };
 
-    private handleRegister(ws: WebSocket, msg: RegisterMessage): void {
-        const connectionId = randomUUID();
-        this.connections.set(connectionId, { role: msg.role, ws });
-        console.log(`Registered connection ${connectionId} with role "${msg.role}"`);
+        // TODO: proper type
+        let response: BrokerResponse | undefined;
+
+        try {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            response = processRequestByProtocolImplementationMap(msg, implementationMap) as BrokerResponse;
+        } catch (error: unknown) {
+            if (error instanceof ProtocolUnknownRequest) {
+                console.error(error);
+                ws.close(1003, error.message);
+                return;
+            }
+
+            response = {
+                type: "error",
+                error: error instanceof Error ? error.message : String(error),
+            };
+        }
 
         this.send(ws, {
-            type: "registered",
-            id: this.generateMessageId(),
+            ...response,
             replyTo: msg.id,
-            connectionId,
         });
     }
 
-    private handleListByRole(ws: WebSocket, msg: ListByRoleMessage): void {
+    private handleRegister(ws: WebSocket, role: string): string {
+        const connectionId = randomUUID();
+        this.connections.set(connectionId, { role, ws });
+        console.log(`Registered connection ${connectionId} with role "${role}"`);
+
+        return connectionId;
+    }
+
+    private handleListByRole(role: string): string[] {
         const ids = Array.from(this.connections.entries())
-            .filter(([_, conn]) => conn.role === msg.role)
+            .filter(([_, conn]) => conn.role === role)
             .map(([id]) => id);
 
-        console.log(`Listing connections with role "${msg.role}": ${ids.length} found`);
+        console.log(`Listing connections with role "${role}": ${ids.length} found`);
 
-        this.send(ws, {
-            type: "connections",
-            id: this.generateMessageId(),
-            replyTo: msg.id,
-            ids,
-        });
+        return ids;
     }
 
-    private handleOpenChannel(ws: WebSocket, msg: OpenChannelMessage): void {
-        const targetConn = this.connections.get(msg.targetId);
+    private handleOpenChannel(ws: WebSocket, targetId: string): string {
+        const targetConn = this.connections.get(targetId);
         if (!targetConn) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Target connection not found",
-            });
-            return;
+            throw new Error("Target connection not found");
         }
 
         const fromId = this.getConnectionId(ws);
         if (!fromId) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Connection not registered",
-            });
-            return;
+            throw new Error("Connection not registered");
         }
 
         const channelId = randomUUID();
-        this.channels.set(channelId, { from: fromId, to: msg.targetId });
+        this.channels.set(channelId, { from: fromId, to: targetId });
 
-        console.log(`Opened channel ${channelId} from ${fromId} to ${msg.targetId}`);
+        console.log(`Opened channel ${channelId} from ${fromId} to ${targetId}`);
 
         // Notify target about incoming channel
-        this.send(targetConn.ws, {
+        this.send<IncomingChannelMessage>(targetConn.ws, {
             type: "incoming_channel",
-            id: this.generateMessageId(),
             from: fromId,
             channelId,
         });
 
-        // Confirm to opener
-        this.send(ws, {
-            type: "channel_opened",
-            id: this.generateMessageId(),
-            replyTo: msg.id,
-            channelId,
-        });
+        return channelId;
     }
 
-    private handleChannelMessage(ws: WebSocket, msg: ChannelMessage): void {
-        const channel = this.channels.get(msg.channelId);
+    private handleChannelMessage(ws: WebSocket, channelId: string, payload: unknown): void {
+        const channel = this.channels.get(channelId);
         if (!channel) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Channel not found",
-            });
-            return;
+            throw new Error("Channel not found");
         }
 
         const senderId = this.getConnectionId(ws);
         if (!senderId) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Connection not registered",
-            });
-            return;
+            throw new Error("Connection not registered");
         }
 
         // Verify sender is part of this channel
         if (senderId !== channel.from && senderId !== channel.to) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Not authorized for this channel",
-            });
-            return;
+            throw new Error("Not authorized for this channel");
         }
 
         // Route to the other party
@@ -242,65 +212,33 @@ export class ConnectionBroker {
         const recipient = this.connections.get(recipientId);
 
         if (!recipient) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Recipient not found",
-            });
-            return;
+            throw new Error("Recipient not found");
         }
 
-        console.log(`Routing message on channel ${msg.channelId} from ${senderId} to ${recipientId}`);
+        console.log(`Routing message on channel ${channelId} from ${senderId} to ${recipientId}`);
 
         // Send message to recipient (unsolicited)
-        this.send(recipient.ws, {
+        this.send<ChannelMessageReceived>(recipient.ws, {
             type: "channel_message",
-            id: this.generateMessageId(),
-            channelId: msg.channelId,
-            payload: msg.payload,
-        });
-
-        // Confirm success to sender
-        this.send(ws, {
-            type: "success",
-            id: this.generateMessageId(),
-            replyTo: msg.id,
+            channelId,
+            payload,
         });
     }
 
-    private handleCloseChannel(ws: WebSocket, msg: CloseChannelMessage): void {
-        const channel = this.channels.get(msg.channelId);
+    private handleCloseChannel(ws: WebSocket, channelId: string): void {
+        const channel = this.channels.get(channelId);
         if (!channel) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Channel not found",
-            });
-            return;
+            throw new Error("Channel not found");
         }
 
         const initiatorId = this.getConnectionId(ws);
         if (!initiatorId) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Connection not registered",
-            });
-            return;
+            throw new Error("Connection not registered");
         }
 
         // Verify sender is part of this channel
         if (initiatorId !== channel.from && initiatorId !== channel.to) {
-            this.send(ws, {
-                type: "error",
-                id: this.generateMessageId(),
-                replyTo: msg.id,
-                error: "Not authorized for this channel",
-            });
-            return;
+            throw new Error("Not authorized for this channel");
         }
 
         // Notify the other party
@@ -310,20 +248,12 @@ export class ConnectionBroker {
         if (other) {
             this.send(other.ws, {
                 type: "channel_closed_notification",
-                id: this.generateMessageId(),
-                channelId: msg.channelId,
+                channelId,
             });
         }
 
-        // Confirm to initiator
-        this.send(ws, {
-            type: "success",
-            id: this.generateMessageId(),
-            replyTo: msg.id,
-        });
-
-        console.log(`Closed channel ${msg.channelId}`);
-        this.channels.delete(msg.channelId);
+        console.log(`Closed channel ${channelId}`);
+        this.channels.delete(channelId);
     }
 
     private getConnectionId(ws: WebSocket): string | undefined {
@@ -333,9 +263,16 @@ export class ConnectionBroker {
         return undefined;
     }
 
-    private send(ws: WebSocket, msg: BrokerMessage): void {
+    private send<T extends BrokerNotification>(ws: WebSocket, msg: Omit<T, "id">): void;
+    private send<T extends BaseResponseMessage>(ws: WebSocket, msg: Omit<T, "id">): void;
+    private send(ws: WebSocket, msg: any): void {
         if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(msg));
+            ws.send(
+                JSON.stringify({
+                    ...msg,
+                    id: this.generateMessageId(),
+                }),
+            );
         }
     }
 

@@ -9,7 +9,7 @@ export default defineConfig({
         nxViteTsPaths(),
         webExtension({
             manifest: "manifest.json",
-            additionalInputs: ["offscreen/offscreen.html"],
+            additionalInputs: ["offscreen/offscreen.html", "approval/approval.html"],
             disableAutoLaunch: true,
         }),
     ],

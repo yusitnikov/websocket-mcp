@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Browser window -->
+  <rect x="8" y="18" width="112" height="92" rx="10" ry="10" fill="#1e293b"/>
+
+  <!-- Title bar -->
+  <rect x="8" y="18" width="112" height="28" rx="10" ry="10" fill="#334155"/>
+  <rect x="8" y="34" width="112" height="12" fill="#334155"/>
+
+  <!-- Traffic lights -->
+  <circle cx="28" cy="32" r="5" fill="#ef4444"/>
+  <circle cx="44" cy="32" r="5" fill="#f59e0b"/>
+  <circle cx="60" cy="32" r="5" fill="#22c55e"/>
+
+  <!-- Page content area -->
+  <rect x="18" y="54" width="60" height="6" rx="3" fill="#475569"/>
+  <rect x="18" y="66" width="92" height="6" rx="3" fill="#334155"/>
+  <rect x="18" y="78" width="76" height="6" rx="3" fill="#334155"/>
+  <rect x="18" y="90" width="50" height="6" rx="3" fill="#334155"/>
+
+  <!-- Automation cursor (arrow) -->
+  <polygon points="82,72 82,102 90,94 97,110 104,107 97,91 108,91" fill="#38bdf8"/>
+  <polygon points="82,72 82,102 90,94 97,110 104,107 97,91 108,91" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>

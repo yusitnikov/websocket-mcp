@@ -1,5 +1,4 @@
 import type { BrokerClient } from "./BrokerClient";
-import type { ErrorResponse, SuccessResponse } from "../protocol";
 
 /**
  * Represents a channel (pseudo-connection) between two connections.
@@ -23,19 +22,30 @@ export class Channel {
      * Returns a promise that resolves when the broker confirms delivery.
      */
     async send(payload: unknown): Promise<void> {
-        const response = await this.client.sendWithResponse<SuccessResponse | ErrorResponse>(
-            {
-                type: "message",
-                channelId: this.channelId,
-                payload,
-            },
-            5000,
-            "Send timeout",
-        );
+        await this.client.sendWithResponse("message", {
+            channelId: this.channelId,
+            payload,
+        });
+    }
 
-        if (response.type === "error") {
-            throw new Error(response.error);
-        }
+    async sendWithResponse(payload: unknown, timeout: number): Promise<unknown> {
+        return await new Promise<unknown>((resolve, reject) => {
+            const timeoutHandle = setTimeout(() => {
+                reject(new Error(`Operation timed out after ${timeout / 1000} seconds`));
+            }, timeout);
+
+            this.onMessage = (payload: unknown) => {
+                clearTimeout(timeoutHandle);
+                resolve(payload);
+            };
+
+            this.onClosed = () => {
+                clearTimeout(timeoutHandle);
+                reject(new Error("Channel closed before receiving response"));
+            };
+
+            this.send(payload);
+        });
     }
 
     /**
@@ -43,10 +53,7 @@ export class Channel {
      * Notifies the other party that the channel is closed.
      */
     close(): void {
-        this.client.send({
-            type: "close",
-            channelId: this.channelId,
-        });
+        this.client.send("close", { channelId: this.channelId });
     }
 
     /**

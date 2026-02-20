@@ -1,12 +1,13 @@
 import { BrokerClient, Channel } from "@sitnikov/connection-broker/client";
 import type {
-    ExtensionCommand,
-    ExtensionResponse,
-    ListTabsSuccess,
-    ExecuteJsSuccess,
-    ExecuteJsError,
+    ExtensionRequest,
+    ExecuteJsResponse,
     TabInfo,
+    ApproveSessionResponse,
+    ExtensionAutomationProtocol,
+    ExtensionResponse,
 } from "./protocol";
+import { processRequestByProtocolImplementationMap, ProtocolAsyncImplementationMap } from "@sitnikov/protocol";
 
 /**
  * Extension tab client that connects to the connection broker.
@@ -42,7 +43,8 @@ export class ExtensionTabClient {
         brokerUrl: string,
         private readonly callbacks: {
             listTabs: () => Promise<TabInfo[]>;
-            executeInTab: (tabId: number, code: string) => Promise<ExecuteJsSuccess | ExecuteJsError>;
+            executeInTab: (tabId: number, code: string) => Promise<ExecuteJsResponse>;
+            approveSession: (sessionCode: string) => Promise<ApproveSessionResponse>;
         },
     ) {
         this.broker = new BrokerClient(brokerUrl, "browser-extension", console);
@@ -67,8 +69,8 @@ export class ExtensionTabClient {
      * Connect to the broker and start listening for commands.
      * Automatically reconnects on disconnect with exponential backoff.
      */
-    async connect(): Promise<void> {
-        await this.broker.maintainConnection();
+    connect(): void {
+        this.broker.maintainConnection();
     }
 
     /**
@@ -92,7 +94,7 @@ export class ExtensionTabClient {
 
         channel.onMessage = (payload) => {
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            void this.handleCommand(payload as ExtensionCommand, channel);
+            void this.handleCommand(payload as ExtensionRequest, channel);
         };
 
         channel.onClosed = () => {
@@ -101,48 +103,25 @@ export class ExtensionTabClient {
         };
     }
 
-    private async handleCommand(command: ExtensionCommand, channel: Channel): Promise<void> {
+    private async handleCommand(command: ExtensionRequest, channel: Channel): Promise<void> {
         console.log("Received command:", command);
 
-        if (command.action === "list_tabs") {
-            await this.handleListTabs(channel);
-        } else if (command.action === "execute_js") {
-            await this.handleExecuteJs(command.tabId, command.code, channel);
-        } else {
-            console.warn("Unknown command:", command);
-            channel.send({
-                success: false,
-                error: "Unknown command",
-            } satisfies ExtensionResponse);
-        }
-    }
+        const implementationMap: ProtocolAsyncImplementationMap<ExtensionAutomationProtocol> = {
+            list_tabs: async () => ({ tabs: await this.callbacks.listTabs() }),
+            execute_js: ({ tabId, code }) => this.callbacks.executeInTab(tabId, code),
+            approve_session: ({ sessionCode }) => this.callbacks.approveSession(sessionCode),
+        };
 
-    private async handleListTabs(channel: Channel): Promise<void> {
+        let response: ExtensionResponse;
         try {
-            const tabs = await this.callbacks.listTabs();
-            channel.send({
-                success: true,
-                tabs,
-            } satisfies ListTabsSuccess);
-        } catch (error) {
-            console.error("Failed to list tabs:", error);
-            channel.send({
+            response = await processRequestByProtocolImplementationMap(command, implementationMap);
+        } catch (error: unknown) {
+            response = {
                 success: false,
-                error: String(error),
-            } satisfies ExtensionResponse);
+                message: error instanceof Error ? error.message : String(error),
+            };
         }
-    }
 
-    private async handleExecuteJs(tabId: number, code: string, channel: Channel): Promise<void> {
-        try {
-            const result = await this.callbacks.executeInTab(tabId, code);
-            channel.send(result satisfies ExecuteJsSuccess | ExecuteJsError);
-        } catch (error) {
-            console.error("Failed to execute JS:", error);
-            channel.send({
-                success: false,
-                message: String(error),
-            } satisfies ExecuteJsError);
-        }
+        await channel.send(response);
     }
 }

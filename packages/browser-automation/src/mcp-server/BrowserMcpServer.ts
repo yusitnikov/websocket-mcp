@@ -82,6 +82,22 @@ export class BrowserMcpServer {
                         required: ["tabId", "code"],
                     },
                 },
+                {
+                    name: "initiate_session",
+                    description:
+                        "Initiate a browser automation session. Shows an approval dialog to the user with the session code. Returns a session token and extension connection ID on approval, or indicates rejection.",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            session_code: {
+                                type: "string",
+                                description:
+                                    "A short, readable code shown to the user in the approval dialog to confirm the session is legitimate",
+                            },
+                        },
+                        required: ["session_code"],
+                    },
+                },
             ],
         }));
 
@@ -92,6 +108,9 @@ export class BrowserMcpServer {
                 } else if (params.name === "execute_js") {
                     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
                     return await this.handleExecuteJs(params.arguments as { tabId: string; code: string });
+                } else if (params.name === "initiate_session") {
+                    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                    return await this.handleInitiateSession(params.arguments as { session_code: string });
                 } else {
                     // noinspection ExceptionCaughtLocallyJS
                     throw new Error(`Unknown tool: ${params.name}`);
@@ -142,7 +161,7 @@ export class BrowserMcpServer {
 
         const result = await this.client.executeJs(tabIdNum, code);
 
-        if (result.success && "result" in result) {
+        if (result.success) {
             this.logger?.log("JS execution successful");
 
             return {
@@ -153,7 +172,7 @@ export class BrowserMcpServer {
                     },
                 ],
             };
-        } else if (!result.success && "message" in result) {
+        } else {
             const errorText = result.stack ?? (result.name ? `${result.name}: ${result.message}` : result.message);
 
             this.logger?.error(`JS execution failed: ${result.message}`);
@@ -162,12 +181,34 @@ export class BrowserMcpServer {
                 content: [{ type: "text", text: errorText }],
                 isError: true,
             };
-        } else {
-            this.logger?.error("JS execution failed: unexpected response type");
+        }
+    }
 
+    private async handleInitiateSession(args: { session_code: string }) {
+        const { session_code } = args;
+
+        this.logger?.log(`Initiating session with code: ${session_code}`);
+
+        const result = await this.client.initiateSession(session_code);
+
+        if (result.approved) {
+            this.logger?.log("Session approved");
             return {
-                content: [{ type: "text", text: "Error: unexpected response type" }],
-                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: JSON.stringify({
+                            approved: true,
+                            sessionToken: result.sessionToken,
+                            extensionConnectionId: result.extensionConnectionId,
+                        }),
+                    },
+                ],
+            };
+        } else {
+            this.logger?.log("Session rejected by user");
+            return {
+                content: [{ type: "text", text: JSON.stringify({ approved: false }) }],
             };
         }
     }

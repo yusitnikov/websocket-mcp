@@ -1,3 +1,12 @@
+import {
+    AnyToWorkerProtocol,
+    ForwardedToOffscreenProtocol,
+    ForwardedToPopupProtocol,
+    getSendMessage,
+    processIncomingMessages,
+} from "../protocol";
+import { ExecuteJsResponse, TabInfo } from "@sitnikov/browser-automation/extension-tab-client";
+
 /**
  * Extension service worker.
  *
@@ -8,17 +17,6 @@
  * - Handle tab listing and JS execution requests from offscreen document
  */
 
-import type {
-    GetStatusMessage,
-    StatusMessage,
-    ListTabsRequest,
-    ListTabsResult,
-    ExecuteJsRequest,
-    ExecuteJsResult,
-} from "../types";
-
-const OFFSCREEN_URL = chrome.runtime.getURL("offscreen/offscreen.html");
-
 /**
  * Ensure the offscreen document exists. Chrome only allows one at a time.
  * If the document already exists, createDocument throws — we catch and ignore that.
@@ -26,7 +24,7 @@ const OFFSCREEN_URL = chrome.runtime.getURL("offscreen/offscreen.html");
 async function ensureOffscreenDocument(): Promise<void> {
     try {
         await chrome.offscreen.createDocument({
-            url: OFFSCREEN_URL,
+            url: chrome.runtime.getURL("offscreen/offscreen.html"),
             reasons: ["BLOBS"],
             justification: "Maintains persistent WebSocket connection to the connection broker",
         });
@@ -47,34 +45,20 @@ chrome.runtime.onStartup.addListener(() => {
 // Also create it when the service worker first loads (handles reload/update)
 void ensureOffscreenDocument();
 
-function isStatusMessage(message: unknown): message is StatusMessage {
-    return typeof message === "object" && message !== null && "type" in message && message.type === "broker-status";
-}
+const forwardToOffscreen = getSendMessage<ForwardedToOffscreenProtocol>();
+const forwardToPopup = getSendMessage<ForwardedToPopupProtocol>();
 
-function isGetStatusMessage(message: unknown): message is GetStatusMessage {
-    return typeof message === "object" && message !== null && "type" in message && message.type === "get-broker-status";
-}
+processIncomingMessages<AnyToWorkerProtocol>({
+    list_tabs: async () =>
+        (await chrome.tabs.query({})).map(
+            (tab): TabInfo => ({
+                tabId: tab.id ?? 0,
+                title: tab.title ?? "",
+                url: tab.url ?? "",
+            }),
+        ),
 
-function isListTabsRequest(message: unknown): message is ListTabsRequest {
-    return typeof message === "object" && message !== null && "type" in message && message.type === "list-tabs";
-}
-
-function isExecuteJsRequest(message: unknown): message is ExecuteJsRequest {
-    return typeof message === "object" && message !== null && "type" in message && message.type === "execute-js";
-}
-
-async function handleListTabs(): Promise<ListTabsResult> {
-    const chromeTabs = await chrome.tabs.query({});
-    const tabs = chromeTabs.map((tab) => ({
-        tabId: tab.id ?? 0,
-        title: tab.title ?? "",
-        url: tab.url ?? "",
-    }));
-    return { success: true, tabs };
-}
-
-async function handleExecuteJs(tabId: number, code: string): Promise<ExecuteJsResult> {
-    try {
+    execute_js: async ({ tabId, code }) => {
         const results = await chrome.scripting.executeScript({
             target: { tabId },
             world: "MAIN",
@@ -90,60 +74,35 @@ async function handleExecuteJs(tabId: number, code: string): Promise<ExecuteJsRe
                             : typeof result === "function"
                               ? result.toString()
                               : JSON.stringify(result, null, 2);
-                    return { success: true, result: serialized };
+                    return { success: true, result: serialized } satisfies ExecuteJsResponse;
                 } catch (error: unknown) {
                     if (error instanceof Error) {
-                        return { success: false, name: error.name, message: error.message, stack: error.stack };
+                        return {
+                            success: false,
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack,
+                        } satisfies ExecuteJsResponse;
                     }
-                    return { success: false, message: String(error) };
+                    return { success: false, message: String(error) } satisfies ExecuteJsResponse;
                 }
             }) as unknown as () => void,
             args: [code],
         });
 
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        return (results[0]?.result ?? { success: false, message: "No result from executeScript" }) as ExecuteJsResult;
-    } catch (error) {
-        return { success: false, message: String(error) };
-    }
-}
+        return results[0]?.result ?? { success: false, message: "No result from executeScript" };
+    },
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse): boolean | undefined => {
-    if (isStatusMessage(message)) {
-        // Broadcast status update to popup
-        chrome.runtime.sendMessage(message).catch(() => {
-            // Popup may not be open — ignore the error
+    open_approval_tab: async () => {
+        const tab = await chrome.tabs.create({
+            url: chrome.runtime.getURL("approval/approval.html"),
         });
-        return undefined;
-    } else if (isGetStatusMessage(message)) {
-        // Forward query to offscreen document; relay its response back to popup
-        chrome.runtime
-            .sendMessage(message)
-            .then((response: unknown) => {
-                sendResponse(response);
-            })
-            .catch(() => {
-                sendResponse({ type: "broker-status", connected: false } satisfies StatusMessage);
-            });
-        return true; // Keep channel open for async response
-    } else if (isListTabsRequest(message)) {
-        handleListTabs()
-            .then((result) => {
-                sendResponse(result);
-            })
-            .catch((error: unknown) => {
-                sendResponse({ success: false, error: String(error) });
-            });
-        return true; // Keep channel open for async response
-    } else if (isExecuteJsRequest(message)) {
-        handleExecuteJs(message.tabId, message.code)
-            .then((result) => {
-                sendResponse(result);
-            })
-            .catch((error: unknown) => {
-                sendResponse({ success: false, error: String(error) });
-            });
-        return true; // Keep channel open for async response
-    }
-    return undefined;
+        await chrome.windows.update(tab.windowId, { focused: true });
+    },
+
+    broker_status: (msg) => forwardToPopup(msg).catch(),
+
+    approval_decision: forwardToOffscreen,
+    get_approval_state: forwardToOffscreen,
+    get_broker_status: forwardToOffscreen,
 });
