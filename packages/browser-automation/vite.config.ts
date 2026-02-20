@@ -11,7 +11,13 @@ export default defineConfig(() => ({
     plugins: [
         nxViteTsPaths(),
         nxCopyAssetsPlugin(["README.md", "../../LICENSE.md"]),
-        dts({ entryRoot: "src", tsconfigPath: path.join(__dirname, "tsconfig.lib.json"), pathsToAliases: false }),
+        dts({
+            entryRoot: "src",
+            tsconfigPath: path.join(__dirname, "tsconfig.lib.json"),
+            pathsToAliases: false,
+            rollupTypes: true,
+            bundledPackages: ["@sitnikov/protocol"],
+        }),
     ],
     build: {
         outDir: "../../dist/packages/browser-automation",

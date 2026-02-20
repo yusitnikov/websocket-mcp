@@ -4,5 +4,5 @@
     "description": "TypeScript support for discriminator-based request-response protocols",
     "type": "module",
     "main": "./index.js",
-    "types": "./index.d.ts"
+    "types": "./src/index.ts"
 }
