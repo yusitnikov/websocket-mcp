@@ -45,16 +45,18 @@ npm run broker
 
 **4. Use the MCP tools in Claude:**
 
-- `initiate_session` — Show an approval dialog in the browser; user verifies the session code and approves
-- `list_tabs` — List all open browser tabs (title, URL, Chrome tab ID)
-- `execute_js` — Execute JavaScript in a specific tab
+1. `initiate_session` — Show an approval dialog in the browser; user verifies the session code and approves; returns a `sessionToken` and `extensionConnectionId`
+2. `list_tabs` — List all open browser tabs (requires `session_token` + `extension_connection_id`)
+3. `execute_js` — Execute JavaScript in a specific tab (requires `session_token` + `extension_connection_id`)
 
 ## How It Works
 
 The extension's offscreen document maintains a persistent WebSocket connection to the broker.
 When Claude calls `initiate_session`, an approval tab opens in Chrome showing a session code the user can verify.
-Once approved, Claude can call `list_tabs` and `execute_js` — commands flow through the broker to the extension,
-which uses `chrome.scripting.executeScript` to run code in the target tab and return results
+Once approved, a `sessionToken` and `extensionConnectionId` are returned. Claude must supply both with every subsequent
+`list_tabs` and `execute_js` call — the extension validates the token before executing any command, and operations are
+routed directly to the specific extension instance. Commands flow through the broker, and the extension uses
+`chrome.scripting.executeScript` to run code in the target tab and return results
 (including full error details with stack traces).
 
 See `ARCHITECTURE.md` for the full communication flow and `SECURITY.md` for the security model.

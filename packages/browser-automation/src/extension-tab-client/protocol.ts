@@ -3,10 +3,14 @@ import { AnyProtocolRequest, AnyProtocolResponse } from "@sitnikov/protocol";
 // Commands sent TO the extension
 export type ExtensionAutomationProtocol = {
     list_tabs: {
+        request: {
+            sessionToken: string;
+        };
         response: ListTabsSuccess;
     };
     execute_js: {
         request: {
+            sessionToken: string;
             tabId: number; // Chrome tab ID (number)
             code: string;
         };

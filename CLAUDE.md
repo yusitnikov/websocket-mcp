@@ -17,7 +17,7 @@ This is an NX monorepo implementing a **generic connection broker** system that 
 ## Development Notes
 
 - **CRITICAL**: NEVER launch, start, run, or test any servers, applications, or tools yourself
-- To check for issues after making changes, run `npm run lint` and `npm run typecheck`
+- To check for issues after making changes, run `npm run lint` and `npm run typecheck` — always show the full output, never truncate with `tail` or `head`
 - Connection broker entry point: `packages/connection-broker/bin/broker.ts`
 - MCP server entry point: `packages/browser-automation/bin/mcp-server.ts`
 - **DO NOT** access or run files from `dist/` directory
@@ -68,28 +68,33 @@ See `ARCHITECTURE.md` for full details. Key points:
 1. **ExtensionTabClient** (`src/extension-tab-client/`)
     - Runs in the extension's offscreen document
     - Registers with broker role `"browser-extension"` (persistent, auto-reconnect)
-    - Receives commands via broker channels; delegates to injected callbacks
+    - **Owns session token validation**: stores approved tokens in `approvedSessionTokens: Set<string>`; rejects `list_tabs`/`execute_js` if token is invalid
+    - Receives commands via broker channels; delegates to injected callbacks (which do not receive the token — validation is done before calling them)
     - Callbacks are implemented in the service worker (`chrome.tabs`, `chrome.scripting`)
 
 2. **ExtensionAutomationClient** (`src/extension-automation-client/`)
     - MCP-server-side client that talks to the extension via broker
     - Connects to broker **on-demand** for each operation (ephemeral connections)
+    - `initiateSession`: discovers extension via `list_by_role`, opens channel, sends `approve_session`; returns `sessionToken` + `extensionConnectionId`
+    - `listTabs` / `executeJs`: connect directly to the given `extensionConnectionId` — no re-discovery via `list_by_role`
     - Disconnects immediately after each operation
 
 3. **BrowserMcpServer** (`src/mcp-server/`)
     - Thin MCP adapter that delegates to `ExtensionAutomationClient`
     - Implements `list_tabs`, `execute_js`, and `initiate_session` tools
+    - `list_tabs` and `execute_js` require `session_token` + `extension_connection_id` (both from `initiate_session`)
 
 **Extension protocol flow** (example for execute_js):
 
-1. MCP server connects to broker with role `"mcp-server"`
-2. Finds the extension via `list_by_role("browser-extension")`
-3. Opens channel, sends: `{action: "execute_js", tabId: 123, code: "document.title"}`
-4. Extension's offscreen document receives command, relays to service worker via `chrome.runtime.sendMessage`
-5. Service worker calls `chrome.scripting.executeScript({ tabId, world: "MAIN", func, args: [code] })`
-6. Injected function runs code via `eval()` inside the page's JS context; catches errors; returns structured result
-7. Result travels back: service worker → offscreen → broker → MCP server → Claude
-8. Errors include `name`, `message`, `stack` fields from the `Error` object
+1. MCP server connects to broker with role `"mcp-server"` using the `extensionConnectionId` from `initiate_session`
+2. Opens channel directly to that extension (no `list_by_role`)
+3. Sends: `{type: "execute_js", sessionToken: "...", tabId: 123, code: "document.title"}`
+4. `ExtensionTabClient` validates `sessionToken`; rejects with error if not in `approvedSessionTokens`
+5. Extension's offscreen document relays command to service worker via `chrome.runtime.sendMessage`
+6. Service worker calls `chrome.scripting.executeScript({ tabId, world: "MAIN", func, args: [code] })`
+7. Injected function runs code via `eval()` inside the page's JS context; catches errors; returns structured result
+8. Result travels back: service worker → offscreen → broker → MCP server → Claude
+9. Errors include `name`, `message`, `stack` fields from the `Error` object
 
 **Important CSP note:** `chrome.scripting.executeScript` with `func` bypasses page CSP for the injection itself. But `eval()` _inside_ the injected function is still subject to page CSP — it will fail on pages with strict `script-src` (e.g., WhatsApp). The error is reported back as a structured `EvalError`.
 

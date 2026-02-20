@@ -965,16 +965,12 @@ codes but adds defense in depth.
    zero friction in happy path but breaks multi-profile scenarios.
    Need to decide: use both together? Make multi-extension count configurable?
 
-   **Partially implemented:** Option (b) is in place — `ExtensionAutomationClient`
-   errors if more than 1 extension is connected, and the offscreen document enters
-   a `blocked` state if two simultaneous `approve_session` requests arrive. However,
-   the `blocked` state has no unlock mechanism yet (requires extension reload).
-   Option (a) (HMAC challenge-response) is not yet implemented.
+    **Partially implemented:** Option (b) is in place — `ExtensionAutomationClient`
+    errors if more than 1 extension is connected, and the offscreen document enters
+    a `blocked` state if two simultaneous `approve_session` requests arrive. However,
+    the `blocked` state has no unlock mechanism yet (requires extension reload).
+    Option (a) (HMAC challenge-response) is not yet implemented.
 
-9. **Session token enforcement.** `initiate_session` issues a session token on
-   approval, but `list_tabs` and `execute_js` do not yet require a valid token.
-   The token needs to be validated before any automation commands are accepted.
-
-10. **Fine-grained per-tab approval.** Currently `initiate_session` approves all
-    tabs (all-or-nothing). The approval page should let the user select which
-    specific tabs the session is allowed to control.
+9. **Fine-grained per-tab approval.** Currently `initiate_session` approves all
+   tabs (all-or-nothing). The approval page should let the user select which
+   specific tabs the session is allowed to control.

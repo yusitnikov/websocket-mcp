@@ -60,8 +60,17 @@ export class BrowserMcpServer {
                     description: "List all open browser tabs",
                     inputSchema: {
                         type: "object",
-                        properties: {},
-                        required: [],
+                        properties: {
+                            session_token: {
+                                type: "string",
+                                description: "Session token obtained from initiate_session",
+                            },
+                            extension_connection_id: {
+                                type: "string",
+                                description: "Extension connection ID obtained from initiate_session",
+                            },
+                        },
+                        required: ["session_token", "extension_connection_id"],
                     },
                 },
                 {
@@ -70,6 +79,14 @@ export class BrowserMcpServer {
                     inputSchema: {
                         type: "object",
                         properties: {
+                            session_token: {
+                                type: "string",
+                                description: "Session token obtained from initiate_session",
+                            },
+                            extension_connection_id: {
+                                type: "string",
+                                description: "Extension connection ID obtained from initiate_session",
+                            },
                             tabId: {
                                 type: "string",
                                 description: "ID of the browser tab to execute code in (from list_tabs)",
@@ -79,7 +96,7 @@ export class BrowserMcpServer {
                                 description: "JavaScript code to execute",
                             },
                         },
-                        required: ["tabId", "code"],
+                        required: ["session_token", "extension_connection_id", "tabId", "code"],
                     },
                 },
                 {
@@ -104,10 +121,13 @@ export class BrowserMcpServer {
         this.server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
             try {
                 if (params.name === "list_tabs") {
-                    return await this.handleListTabs();
-                } else if (params.name === "execute_js") {
+                    type ListTabsArgs = { session_token: string; extension_connection_id: string };
                     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                    return await this.handleExecuteJs(params.arguments as { tabId: string; code: string });
+                    return await this.handleListTabs(params.arguments as ListTabsArgs);
+                } else if (params.name === "execute_js") {
+                    type ExecuteJsArgs = { session_token: string; extension_connection_id: string; tabId: string; code: string };
+                    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                    return await this.handleExecuteJs(params.arguments as ExecuteJsArgs);
                 } else if (params.name === "initiate_session") {
                     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
                     return await this.handleInitiateSession(params.arguments as { session_code: string });
@@ -129,8 +149,8 @@ export class BrowserMcpServer {
         });
     }
 
-    private async handleListTabs() {
-        const tabs = await this.client.listTabs();
+    private async handleListTabs(args: { session_token: string; extension_connection_id: string }) {
+        const tabs = await this.client.listTabs(args.session_token, args.extension_connection_id);
 
         this.logger?.log(`Found ${tabs.length} browser tabs`);
 
@@ -149,8 +169,8 @@ export class BrowserMcpServer {
         };
     }
 
-    private async handleExecuteJs(args: { tabId: string; code: string }) {
-        const { tabId, code } = args;
+    private async handleExecuteJs(args: { session_token: string; extension_connection_id: string; tabId: string; code: string }) {
+        const { session_token, extension_connection_id, tabId, code } = args;
         const tabIdNum = parseInt(tabId, 10);
 
         if (isNaN(tabIdNum)) {
@@ -159,7 +179,7 @@ export class BrowserMcpServer {
 
         this.logger?.log(`Executing JS in tab ${tabId}: ${code.substring(0, 100)}...`);
 
-        const result = await this.client.executeJs(tabIdNum, code);
+        const result = await this.client.executeJs(session_token, extension_connection_id, tabIdNum, code);
 
         if (result.success) {
             this.logger?.log("JS execution successful");

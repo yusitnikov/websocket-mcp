@@ -39,6 +39,8 @@ export class ExtensionTabClient {
      */
     onDisconnected?: () => void;
 
+    private readonly approvedSessionTokens = new Set<string>();
+
     constructor(
         brokerUrl: string,
         private readonly callbacks: {
@@ -88,6 +90,12 @@ export class ExtensionTabClient {
         this.activeChannels.clear();
     }
 
+    private validateSessionToken(sessionToken: string): void {
+        if (!this.approvedSessionTokens.has(sessionToken)) {
+            throw new Error("Invalid or expired session token");
+        }
+    }
+
     private handleIncomingChannel(channel: Channel): void {
         console.log(`Incoming channel from ${channel.getPeerId()}`);
         this.activeChannels.add(channel);
@@ -107,9 +115,21 @@ export class ExtensionTabClient {
         console.log("Received command:", command);
 
         const implementationMap: ProtocolAsyncImplementationMap<ExtensionAutomationProtocol> = {
-            list_tabs: async () => ({ tabs: await this.callbacks.listTabs() }),
-            execute_js: ({ tabId, code }) => this.callbacks.executeInTab(tabId, code),
-            approve_session: ({ sessionCode }) => this.callbacks.approveSession(sessionCode),
+            list_tabs: async ({ sessionToken }) => {
+                this.validateSessionToken(sessionToken);
+                return { tabs: await this.callbacks.listTabs() };
+            },
+            execute_js: ({ sessionToken, tabId, code }) => {
+                this.validateSessionToken(sessionToken);
+                return this.callbacks.executeInTab(tabId, code);
+            },
+            approve_session: ({ sessionCode }) =>
+                this.callbacks.approveSession(sessionCode).then((response) => {
+                    if (response.success) {
+                        this.approvedSessionTokens.add(response.sessionToken);
+                    }
+                    return response;
+                }),
         };
 
         let response: ExtensionResponse;
@@ -117,7 +137,7 @@ export class ExtensionTabClient {
             response = await processRequestByProtocolImplementationMap(command, implementationMap);
         } catch (error: unknown) {
             response = {
-                success: false,
+                type: "error",
                 message: error instanceof Error ? error.message : String(error),
             };
         }

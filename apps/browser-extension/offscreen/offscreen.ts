@@ -56,12 +56,8 @@ const sendMessageToWorker = getSendMessage<OffscreenToWorkerProtocol>();
 // ---------------------------------------------------------------------------
 
 const client = new ExtensionTabClient(BROKER_URL, {
-    listTabs: async () => {
-        return await sendMessageToWorker({ type: "list_tabs" });
-    },
-    executeInTab: async (tabId, code) => {
-        return await sendMessageToWorker({ type: "execute_js", tabId, code });
-    },
+    listTabs: () => sendMessageToWorker({ type: "list_tabs" }),
+    executeInTab: (tabId, code) => sendMessageToWorker({ type: "execute_js", tabId, code }),
     approveSession: handleApproveSession,
 });
 
@@ -102,7 +98,6 @@ processIncomingMessages<ForwardedToOffscreenProtocol>({
         const resolve = approvalState.resolve;
         approvalState = { status: "idle" };
         if (approved) {
-            // Generate a session token
             const sessionToken = crypto.randomUUID();
             resolve({ success: true, sessionToken });
         } else {

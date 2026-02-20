@@ -152,34 +152,18 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 
 ### Layer 2: Extension Automation Protocol (primary)
 
-**Extension commands** (sent TO the extension via broker channel):
-
-```
-{ action: "list_tabs" }
-{ action: "execute_js", tabId: number, code: string }
-{ action: "approve_session", sessionCode: string }
-```
-
-**Extension responses** (sent FROM the extension):
-
-```
-{ success: true, tabs: TabInfo[] }          // list_tabs response
-{ success: true, result: string }            // execute_js success (JSON-serialized)
-{ success: false, message, name?, stack? }   // execute_js error (Error fields)
-{ success: true, sessionToken: string }      // approve_session: user approved
-{ success: false }                           // approve_session: user rejected or blocked
-{ success: false, error: string }            // generic protocol error
-```
+Message types and response shapes are defined in `packages/browser-automation/src/extension-tab-client/protocol.ts`.
 
 **When MCP server calls `execute_js` (extension path):**
 
-1. MCP server connects to broker with role `"mcp-server"`
-2. Finds extension via `list_by_role("browser-extension")`
-3. Opens channel, sends: `{action: "execute_js", tabId: 123, code: "document.title"}`
-4. Extension offscreen document receives command, sends to service worker via `chrome.runtime`
-5. Service worker calls `chrome.scripting.executeScript({ tabId, world: "MAIN", func, args: [code] })`
-6. Injected function runs `eval(code)`, awaits if Promise, serializes result or captures error fields
-7. Result (or error with `name`/`message`/`stack`) travels back through offscreen → broker → MCP server → Claude
+1. MCP server connects to broker with role `"mcp-server"`, using the `extensionConnectionId` from `initiate_session`
+2. Opens channel directly to that extension ID (no `list_by_role` re-discovery)
+3. Sends: `{type: "execute_js", sessionToken: "...", tabId: 123, code: "document.title"}`
+4. `ExtensionTabClient` validates `sessionToken`; rejects if not in the approved set
+5. Extension offscreen document relays command to service worker via `chrome.runtime`
+6. Service worker calls `chrome.scripting.executeScript({ tabId, world: "MAIN", func, args: [code] })`
+7. Injected function runs `eval(code)`, awaits if Promise, serializes result or captures error fields
+8. Result (or error with `name`/`message`/`stack`) travels back through offscreen → broker → MCP server → Claude
 
 **The broker doesn't know** anything about this — it just routes opaque messages.
 
@@ -195,7 +179,7 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 
 1. LLM generates a short human-readable session code and calls `initiate_session`
 2. `ExtensionAutomationClient` enforces exactly 1 connected extension (multiple → error, suspected impersonation attack)
-3. Opens broker channel to extension, sends `{ action: "approve_session", sessionCode }`
+3. Opens broker channel to that extension, sends `{ type: "approve_session", sessionCode }`
 4. Offscreen document checks approval state machine:
    - `blocked` → rejects immediately
    - `pending` → duplicate request detected → transitions to `blocked`, rejects both
@@ -203,25 +187,22 @@ Broker → Client A: {type: "channel_closed", id: 11, replyTo: 9, channelId: "ch
 5. Approval page opens; polls offscreen (via service worker) for state every 200ms
 6. Once `pending`, page shows the session code with Approve/Reject buttons; keeps polling every 500ms to detect `blocked` state
 7. User approves → offscreen generates a UUID session token, resolves with `{ success: true, sessionToken }`
-8. User rejects or closes tab → offscreen resolves with `{ success: false }`
-9. If `blocked` detected while page is open → buttons disabled, security warning shown
-10. Result returns: offscreen → broker → `ExtensionAutomationClient` → MCP server → LLM
-11. Timeout: 120 seconds (enforced by `ExtensionAutomationClient`)
+8. `ExtensionTabClient` adds the token to its `approvedSessionTokens` set
+9. User rejects or closes tab → offscreen resolves with `{ success: false }`
+10. If `blocked` detected while page is open → buttons disabled, security warning shown
+11. Result returns: offscreen → broker → `ExtensionAutomationClient` → MCP server → LLM as `{ approved: true, sessionToken, extensionConnectionId }`
+12. Timeout: 120 seconds (enforced by `ExtensionAutomationClient`)
 
 **Blocked state**: Triggered when two simultaneous `approve_session` requests arrive. All subsequent requests are rejected until the extension is reloaded. (TODO: add unlock mechanism.)
 
 ### Layer 2: Tab Client Protocol (cooperating sites, secondary)
 
-**Built on top of broker protocol:**
-
 When MCP server calls `execute_js` (tab path):
 
 1. MCP server connects to broker with role `"mcp-server"`
-2. Opens channel to specific tab UUID
-3. Sends: `{action: "execute_js", code: "document.title"}`
-4. Tab receives message, executes code (awaits if it's a Promise)
-5. Tab sends: `{success: true, result: "\"Page Title\""}`
-6. MCP server receives result, closes channel, disconnects
+2. Opens channel to a specific tab UUID
+3. Sends the command; tab executes the code and responds with the result
+4. MCP server receives result, closes channel, disconnects
 
 **Key features:**
 
@@ -400,11 +381,11 @@ Configure Claude Desktop:
 }
 ```
 
-Then use tools:
+Then use tools (in order):
 
-- `initiate_session` - Show an approval dialog in the browser; returns session token on approval
-- `list_tabs` - See all open browser tabs
-- `execute_js` - Run JavaScript in specific tabs
+1. `initiate_session` — Show an approval dialog in the browser; returns `sessionToken` + `extensionConnectionId` on approval
+2. `list_tabs` — List all open browser tabs (requires `session_token` + `extension_connection_id`)
+3. `execute_js` — Run JavaScript in a specific tab (requires `session_token` + `extension_connection_id`)
 
 ## Future Extensions
 
@@ -436,12 +417,14 @@ Then use tools:
 **Current state:**
 
 - The broker has no authentication — any WebSocket client can connect and register with any role
-- `initiate_session` requires explicit user approval via the approval page (in-progress — session token is issued but not yet enforced on `list_tabs`/`execute_js`; fine-grained per-tab control is also TODO)
+- `initiate_session` requires explicit user approval via the approval page; issues a session token + extension connection ID
+- `list_tabs` and `execute_js` require both a valid `session_token` and the exact `extension_connection_id` from `initiate_session`
+- Session token is validated by `ExtensionTabClient` (the extension-side broker client, the true security boundary)
+- Subsequent operations target the specific extension instance by ID — no re-discovery via `list_by_role`
 - The extension rejects simultaneous `approve_session` requests as a suspected attack
 - Run on localhost only; use firewall rules to block external access
 
 **Planned (see SECURITY.md):**
 
-- Enforce session token on `list_tabs` and `execute_js`
 - Fine-grained per-tab approval
 - HMAC challenge-response to cryptographically guard against role impersonation on the broker

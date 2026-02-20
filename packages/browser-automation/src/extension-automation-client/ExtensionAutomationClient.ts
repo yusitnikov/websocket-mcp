@@ -30,16 +30,16 @@ export class ExtensionAutomationClient {
         private readonly logger?: BrokerClientLogger,
     ) {}
 
-    async listTabs(): Promise<TabInfo[]> {
-        return await this.withBrowserExtensionChannel(async (channel) => {
-            const { tabs } = await this.sendToBrowserExtension(channel, { type: "list_tabs" }, 30000);
+    async listTabs(sessionToken: string, extensionConnectionId: string): Promise<TabInfo[]> {
+        return await this.withSpecificExtensionChannel(extensionConnectionId, async (channel) => {
+            const { tabs } = await this.sendToBrowserExtension(channel, { type: "list_tabs", sessionToken }, 30000);
             return tabs;
         });
     }
 
-    async executeJs(tabId: number, code: string): Promise<ExecuteJsResponse> {
-        return await this.withBrowserExtensionChannel(async (channel) => {
-            return await this.sendToBrowserExtension(channel, { type: "execute_js", tabId, code }, 30000);
+    async executeJs(sessionToken: string, extensionConnectionId: string, tabId: number, code: string): Promise<ExecuteJsResponse> {
+        return await this.withSpecificExtensionChannel(extensionConnectionId, async (channel) => {
+            return await this.sendToBrowserExtension(channel, { type: "execute_js", sessionToken, tabId, code }, 30000);
         });
     }
 
@@ -86,14 +86,24 @@ export class ExtensionAutomationClient {
                 throw new Error("No browser extension connected");
             }
 
-            const channel = await broker.openChannel(extensionId);
-
-            try {
-                return await fn(channel);
-            } finally {
-                channel.close();
-            }
+            return await this.withChannel(broker, extensionId, fn);
         });
+    }
+
+    private async withSpecificExtensionChannel<T>(extensionConnectionId: string, fn: (channel: Channel) => Promise<T>): Promise<T> {
+        return await this.withBroker(async (broker) => {
+            return await this.withChannel(broker, extensionConnectionId, fn);
+        });
+    }
+
+    private async withChannel<T>(broker: BrokerClient, extensionId: string, fn: (channel: Channel) => Promise<T>): Promise<T> {
+        const channel = await broker.openChannel(extensionId);
+
+        try {
+            return await fn(channel);
+        } finally {
+            channel.close();
+        }
     }
 
     private async sendToBrowserExtension<TypeT extends keyof ExtensionAutomationProtocol>(
