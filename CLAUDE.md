@@ -8,6 +8,7 @@ This is an NX monorepo implementing a **generic connection broker** system that 
 
 **Core Packages:**
 
+- `packages/protocol/` - Generic typed request-response protocol utilities; used to define message contracts between any two parties in this repo
 - `packages/connection-broker/` - Generic, reusable WebSocket broker for routing messages between clients (completely domain-agnostic)
 - `packages/browser-automation/` - Browser automation built on the broker (MCP server + extension client + tab client)
 - `apps/browser-extension/` - Chrome extension (Manifest V3) — the primary browser-side component
