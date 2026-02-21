@@ -1,4 +1,5 @@
-import { ApproveSessionResponse, ExtensionTabClient } from "@sitnikov/browser-automation/extension-tab-client";
+import { ApproveSessionResponse } from "@sitnikov/browser-automation/protocol";
+import { ExtensionTabClient } from "@sitnikov/browser-automation/extension-tab-client";
 import {
     OffscreenToWorkerProtocol,
     getSendMessage,

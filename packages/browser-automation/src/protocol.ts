@@ -6,7 +6,7 @@ export type ExtensionAutomationProtocol = {
         request: {
             sessionToken: string;
         };
-        response: ListTabsSuccess;
+        response: chrome.tabs.Tab[];
     };
     execute_js: {
         request: {
@@ -30,16 +30,6 @@ export type ExtensionRequest = AnyProtocolRequest<ExtensionAutomationProtocol>;
 export interface ExtensionError {
     type: "error";
     message: string;
-}
-
-export interface TabInfo {
-    tabId: number;
-    title: string;
-    url: string;
-}
-
-export interface ListTabsSuccess {
-    tabs: TabInfo[];
 }
 
 export interface ExecuteJsSuccess {

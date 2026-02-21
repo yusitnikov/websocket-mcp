@@ -1,2 +1,1 @@
-export { ExtensionTabClient } from "./ExtensionTabClient";
-export * from "./protocol";
+export * from "./ExtensionTabClient";

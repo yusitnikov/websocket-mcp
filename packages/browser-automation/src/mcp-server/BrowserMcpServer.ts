@@ -116,16 +116,26 @@ export class BrowserMcpServer {
 
                 this.logger?.log(`Found ${tabs.length} browser tabs`);
 
-                const MAX_URL_LENGTH = 80;
-                const truncate = (str: string) =>
-                    str.length > MAX_URL_LENGTH ? `${str.substring(0, MAX_URL_LENGTH)}… (truncated)` : str;
-                const lines = tabs.map((tab) => `[${tab.tabId}] ${truncate(tab.title)}\n        ${truncate(tab.url)}`);
+                const truncationLimit = 50;
 
                 return {
                     content: [
                         {
                             type: "text",
-                            text: lines.join("\n"),
+                            text: JSON.stringify(
+                                tabs.map((tab) =>
+                                    Object.fromEntries(
+                                        Object.entries(tab).map(([key, value]) => [
+                                            key,
+                                            typeof value === "string" && value.length > truncationLimit
+                                                ? `${value.substring(0, truncationLimit)}… (truncated)`
+                                                : value,
+                                        ]),
+                                    ),
+                                ),
+                                null,
+                                2,
+                            ),
                         },
                     ],
                 };

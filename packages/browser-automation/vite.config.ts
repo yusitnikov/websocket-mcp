@@ -29,6 +29,7 @@ export default defineConfig(() => ({
         lib: {
             entry: {
                 index: "src/index.ts",
+                protocol: "src/protocol.ts",
                 "extension-tab-client": "src/extension-tab-client/index.ts",
                 "extension-automation-client": "src/extension-automation-client/index.ts",
                 "mcp-server": "src/mcp-server/index.ts",
@@ -41,6 +42,7 @@ export default defineConfig(() => ({
             external: [
                 /^@sitnikov\/connection-broker(\/.+)?$/,
                 /^@modelcontextprotocol\/sdk(\/.+)?$/,
+                "chrome-types",
                 "commander",
                 "fs",
                 "path",

@@ -1,10 +1,5 @@
 import { BrokerClient, type BrokerClientLogger, Channel } from "@sitnikov/connection-broker/client";
-import {
-    TabInfo,
-    ExecuteJsResponse,
-    ExtensionAutomationProtocol,
-    ExtensionResponse,
-} from "../extension-tab-client/protocol";
+import { ExecuteJsResponse, ExtensionAutomationProtocol, ExtensionResponse } from "../protocol";
 import { ProtocolRequest, ProtocolResponse } from "@sitnikov/protocol";
 
 export interface InitiateSessionSuccess {
@@ -30,14 +25,18 @@ export class ExtensionAutomationClient {
         private readonly logger?: BrokerClientLogger,
     ) {}
 
-    async listTabs(sessionToken: string, extensionConnectionId: string): Promise<TabInfo[]> {
-        return await this.withSpecificExtensionChannel(extensionConnectionId, async (channel) => {
-            const { tabs } = await this.sendToBrowserExtension(channel, { type: "list_tabs", sessionToken }, 30000);
-            return tabs;
-        });
+    async listTabs(sessionToken: string, extensionConnectionId: string): Promise<chrome.tabs.Tab[]> {
+        return await this.withSpecificExtensionChannel(extensionConnectionId, (channel) =>
+            this.sendToBrowserExtension(channel, { type: "list_tabs", sessionToken }, 30000),
+        );
     }
 
-    async executeJs(sessionToken: string, extensionConnectionId: string, tabId: number, code: string): Promise<ExecuteJsResponse> {
+    async executeJs(
+        sessionToken: string,
+        extensionConnectionId: string,
+        tabId: number,
+        code: string,
+    ): Promise<ExecuteJsResponse> {
         return await this.withSpecificExtensionChannel(extensionConnectionId, async (channel) => {
             return await this.sendToBrowserExtension(channel, { type: "execute_js", sessionToken, tabId, code }, 30000);
         });
@@ -64,7 +63,7 @@ export class ExtensionAutomationClient {
     }
 
     private async withBroker<T>(fn: (broker: BrokerClient) => Promise<T>): Promise<T> {
-        const broker = new BrokerClient(this.brokerUrl, "mcp-server", this.logger);
+        const broker = new BrokerClient(this.brokerUrl, "browser-automation", this.logger);
 
         try {
             await broker.connect();
@@ -90,13 +89,20 @@ export class ExtensionAutomationClient {
         });
     }
 
-    private async withSpecificExtensionChannel<T>(extensionConnectionId: string, fn: (channel: Channel) => Promise<T>): Promise<T> {
+    private async withSpecificExtensionChannel<T>(
+        extensionConnectionId: string,
+        fn: (channel: Channel) => Promise<T>,
+    ): Promise<T> {
         return await this.withBroker(async (broker) => {
             return await this.withChannel(broker, extensionConnectionId, fn);
         });
     }
 
-    private async withChannel<T>(broker: BrokerClient, extensionId: string, fn: (channel: Channel) => Promise<T>): Promise<T> {
+    private async withChannel<T>(
+        broker: BrokerClient,
+        extensionId: string,
+        fn: (channel: Channel) => Promise<T>,
+    ): Promise<T> {
         const channel = await broker.openChannel(extensionId);
 
         try {

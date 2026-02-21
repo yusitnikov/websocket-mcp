@@ -1,4 +1,4 @@
-import { ExecuteJsResponse, ExtensionError, TabInfo } from "@sitnikov/browser-automation/extension-tab-client";
+import { ExecuteJsResponse, ExtensionError } from "@sitnikov/browser-automation/protocol";
 import {
     AnyProtocolResponse,
     processRequestByProtocolImplementationMap,
@@ -12,7 +12,7 @@ import {
 
 export type OffscreenToWorkerProtocol = {
     list_tabs: {
-        response: TabInfo[];
+        response: chrome.tabs.Tab[];
     };
     execute_js: {
         request: {

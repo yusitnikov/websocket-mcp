@@ -1,3 +1,4 @@
-export * from "./extension-tab-client/index";
-export * from "./extension-automation-client/index";
-export * from "./mcp-server/index";
+export * from "./protocol";
+export * from "./extension-tab-client";
+export * from "./extension-automation-client";
+export * from "./mcp-server";

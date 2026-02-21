@@ -1,5 +1,5 @@
 import { AnyToWorkerProtocol, processIncomingMessages } from "../protocol";
-import { ExecuteJsResponse, TabInfo } from "@sitnikov/browser-automation/extension-tab-client";
+import { ExecuteJsResponse } from "@sitnikov/browser-automation/protocol";
 
 /**
  * Extension service worker.
@@ -39,14 +39,7 @@ chrome.runtime.onStartup.addListener(() => {
 void ensureOffscreenDocument();
 
 processIncomingMessages<AnyToWorkerProtocol>({
-    list_tabs: async () =>
-        (await chrome.tabs.query({})).map(
-            (tab): TabInfo => ({
-                tabId: tab.id ?? 0,
-                title: tab.title ?? "",
-                url: tab.url ?? "",
-            }),
-        ),
+    list_tabs: () => chrome.tabs.query({}),
 
     execute_js: async ({ tabId, code }) => {
         const results = await chrome.scripting.executeScript({

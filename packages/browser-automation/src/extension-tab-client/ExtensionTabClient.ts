@@ -2,11 +2,10 @@ import { BrokerClient, Channel } from "@sitnikov/connection-broker/client";
 import type {
     ExtensionRequest,
     ExecuteJsResponse,
-    TabInfo,
     ApproveSessionResponse,
     ExtensionAutomationProtocol,
     ExtensionResponse,
-} from "./protocol";
+} from "../protocol";
 import { processRequestByProtocolImplementationMap } from "@sitnikov/protocol";
 
 /**
@@ -44,7 +43,7 @@ export class ExtensionTabClient {
     constructor(
         brokerUrl: string,
         private readonly callbacks: {
-            listTabs: () => Promise<TabInfo[]>;
+            listTabs: () => Promise<chrome.tabs.Tab[]>;
             executeInTab: (tabId: number, code: string) => Promise<ExecuteJsResponse>;
             approveSession: (sessionCode: string) => Promise<ApproveSessionResponse>;
         },
@@ -119,7 +118,7 @@ export class ExtensionTabClient {
             response = await processRequestByProtocolImplementationMap<ExtensionAutomationProtocol>(command, {
                 list_tabs: async ({ sessionToken }) => {
                     this.validateSessionToken(sessionToken);
-                    return { tabs: await this.callbacks.listTabs() };
+                    return await this.callbacks.listTabs();
                 },
                 execute_js: ({ sessionToken, tabId, code }) => {
                     this.validateSessionToken(sessionToken);
