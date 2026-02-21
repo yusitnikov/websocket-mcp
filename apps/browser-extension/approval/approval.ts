@@ -42,14 +42,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const state = await sendMessageToOffscreen({ type: "get_approval_state" });
 
         switch (state.status) {
-            case "pending":
+            case "pending": {
                 codeEl.textContent = state.sessionCode;
                 statusEl.textContent = "Verify the code matches what you were shown, then approve or reject.";
+                const wasDisabled = btnApprove.disabled;
                 btnApprove.disabled = false;
                 btnReject.disabled = false;
                 // Keep polling to detect if state switches to blocked mid-approval
                 setTimeout(pollForState, 500);
+                if (wasDisabled) {
+                    btnApprove.focus();
+                }
                 break;
+            }
             case "blocked":
                 // TODO: better UI
                 // TODO: ability to unlock
