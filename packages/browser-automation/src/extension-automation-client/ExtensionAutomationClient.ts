@@ -25,23 +25,6 @@ export class ExtensionAutomationClient {
         private readonly logger?: BrokerClientLogger,
     ) {}
 
-    async listTabs(sessionToken: string, extensionConnectionId: string): Promise<chrome.tabs.Tab[]> {
-        return await this.withSpecificExtensionChannel(extensionConnectionId, (channel) =>
-            this.sendToBrowserExtension(channel, { type: "list_tabs", sessionToken }, 30000),
-        );
-    }
-
-    async executeJs(
-        sessionToken: string,
-        extensionConnectionId: string,
-        tabId: number,
-        code: string,
-    ): Promise<ExecuteJsResponse> {
-        return await this.withSpecificExtensionChannel(extensionConnectionId, async (channel) => {
-            return await this.sendToBrowserExtension(channel, { type: "execute_js", sessionToken, tabId, code }, 30000);
-        });
-    }
-
     async initiateSession(sessionCode: string): Promise<InitiateSessionSuccess | InitiateSessionRejected> {
         return await this.withBrowserExtensionChannel(async (channel) => {
             const response = await this.sendToBrowserExtension(
@@ -59,6 +42,23 @@ export class ExtensionAutomationClient {
             } else {
                 return { approved: false };
             }
+        });
+    }
+
+    async listTabs(sessionToken: string, extensionConnectionId: string): Promise<chrome.tabs.Tab[]> {
+        return await this.withSpecificExtensionChannel(extensionConnectionId, (channel) =>
+            this.sendToBrowserExtension(channel, { type: "list_tabs", sessionToken }, 30000),
+        );
+    }
+
+    async executeJs(
+        sessionToken: string,
+        extensionConnectionId: string,
+        tabId: number,
+        code: string,
+    ): Promise<ExecuteJsResponse> {
+        return await this.withSpecificExtensionChannel(extensionConnectionId, async (channel) => {
+            return await this.sendToBrowserExtension(channel, { type: "execute_js", sessionToken, tabId, code }, 30000);
         });
     }
 
