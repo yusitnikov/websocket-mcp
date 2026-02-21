@@ -208,9 +208,12 @@ export class BrokerClient {
                 }
             };
 
-            ws.onerror = (error: Event | import("ws").ErrorEvent) => {
+            ws.onerror = (event: Event | import("ws").ErrorEvent) => {
                 clearTimeout(connectionTimeout);
-                reject(error);
+                this.logger?.error(
+                    `Failed to connect to the WebSocket: ${"message" in event ? event.message : "unknown error"}`,
+                );
+                reject(new Error("Failed to connect to the WebSocket"));
             };
 
             ws.onclose = () => {
