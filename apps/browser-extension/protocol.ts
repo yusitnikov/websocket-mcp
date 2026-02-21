@@ -1,5 +1,6 @@
 import { ExecuteJsResponse, ExtensionError, TabInfo } from "@sitnikov/browser-automation/extension-tab-client";
 import {
+    AnyProtocolResponse,
     processRequestByProtocolImplementationMap,
     ProtocolAsyncImplementationMap,
     ProtocolContract,
@@ -22,6 +23,16 @@ export type OffscreenToWorkerProtocol = {
     };
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     open_approval_tab: {};
+};
+
+export type PopupToOffscreenProtocol = {
+    get_broker_status: {
+        // Connection ID
+        response: string | undefined;
+    };
+};
+
+export type OffscreenToPopupProtocol = {
     broker_status: {
         request: {
             connectionId?: string;
@@ -29,13 +40,7 @@ export type OffscreenToWorkerProtocol = {
     };
 };
 
-export type PopupToWorkerProtocol = {
-    get_broker_status: {
-        response: any;
-    };
-};
-
-export type ApprovalToWorkerProtocol = {
+export type ApprovalToOffscreenProtocol = {
     approval_decision: {
         request: {
             approved: boolean;
@@ -46,24 +51,24 @@ export type ApprovalToWorkerProtocol = {
     };
 };
 
-export type AnyToWorkerProtocol = OffscreenToWorkerProtocol & PopupToWorkerProtocol & ApprovalToWorkerProtocol;
+export type AnyToWorkerProtocol = OffscreenToWorkerProtocol;
 
-export type ForwardedToOffscreenProtocol = PopupToWorkerProtocol & ApprovalToWorkerProtocol;
+export type AnyToOffscreenProtocol = PopupToOffscreenProtocol & ApprovalToOffscreenProtocol;
 
-export type ForwardedToPopupProtocol = Pick<OffscreenToWorkerProtocol, "broker_status">;
+export type AnyToPopupProtocol = OffscreenToPopupProtocol;
 
 export const getSendMessage =
     <ContractT extends ProtocolContract>() =>
-    async <TypeT extends keyof ContractT>(message: ProtocolRequest<ContractT, TypeT>) => {
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        return (await chrome.runtime.sendMessage(message)) as ProtocolResponse<ContractT, TypeT>;
-    };
+    <TypeT extends keyof ContractT>(
+        message: ProtocolRequest<ContractT, TypeT>,
+    ): Promise<ProtocolResponse<ContractT, TypeT>> =>
+        chrome.runtime.sendMessage(message);
 
 export const processIncomingMessages = <ContractT extends ProtocolContract>(
     implementationMap: ProtocolSyncImplementationMap<ContractT> | ProtocolAsyncImplementationMap<ContractT>,
 ) =>
     chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse): boolean | undefined => {
-        let response;
+        let response: AnyProtocolResponse<ContractT> | Promise<AnyProtocolResponse<ContractT>> | ExtensionError;
 
         const formatError = (error: unknown): ExtensionError => ({
             type: "error",
@@ -80,6 +85,7 @@ export const processIncomingMessages = <ContractT extends ProtocolContract>(
             response = formatError(error);
         }
 
+        // noinspection SuspiciousTypeOfGuard
         if (!(response instanceof Promise)) {
             sendResponse(response);
             return undefined;

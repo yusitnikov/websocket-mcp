@@ -2,8 +2,9 @@ import { ApproveSessionResponse, ExtensionTabClient } from "@sitnikov/browser-au
 import {
     OffscreenToWorkerProtocol,
     getSendMessage,
-    ForwardedToOffscreenProtocol,
+    AnyToOffscreenProtocol,
     processIncomingMessages,
+    OffscreenToPopupProtocol,
 } from "../protocol";
 
 const BROKER_URL = "ws://localhost:3004";
@@ -50,6 +51,7 @@ async function handleApproveSession(sessionCode: string): Promise<ApproveSession
 }
 
 const sendMessageToWorker = getSendMessage<OffscreenToWorkerProtocol>();
+const sendMessageToPopup = getSendMessage<OffscreenToPopupProtocol>();
 
 // ---------------------------------------------------------------------------
 // ExtensionTabClient setup
@@ -64,7 +66,7 @@ const client = new ExtensionTabClient(BROKER_URL, {
 let currentConnectionId: string | undefined;
 
 function sendStatus(): void {
-    sendMessageToWorker({ type: "broker_status", connectionId: currentConnectionId }).catch();
+    sendMessageToPopup({ type: "broker_status", connectionId: currentConnectionId }).catch();
 }
 
 client.onConnected = (id) => {
@@ -80,8 +82,8 @@ client.onDisconnected = () => {
 };
 
 // Message listener (handles messages from service worker)
-processIncomingMessages<ForwardedToOffscreenProtocol>({
-    get_broker_status: () => ({ type: "broker_status", connectionId: currentConnectionId }),
+processIncomingMessages<AnyToOffscreenProtocol>({
+    get_broker_status: () => currentConnectionId,
 
     get_approval_state: () =>
         approvalState.status === "pending"

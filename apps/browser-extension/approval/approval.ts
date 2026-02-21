@@ -1,9 +1,9 @@
-import { ApprovalToWorkerProtocol, getSendMessage } from "../protocol";
+import { ApprovalToOffscreenProtocol, getSendMessage } from "../protocol";
 
-const sendMessageToWorker = getSendMessage<ApprovalToWorkerProtocol>();
+const sendMessageToOffscreen = getSendMessage<ApprovalToOffscreenProtocol>();
 
 async function sendDecision(approved: boolean): Promise<void> {
-    await sendMessageToWorker({ type: "approval_decision", approved });
+    await sendMessageToOffscreen({ type: "approval_decision", approved });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     async function pollForState(): Promise<void> {
-        const state = await sendMessageToWorker({ type: "get_approval_state" });
+        const state = await sendMessageToOffscreen({ type: "get_approval_state" });
 
         switch (state.status) {
             case "pending":

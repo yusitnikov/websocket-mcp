@@ -1,10 +1,4 @@
-import {
-    AnyToWorkerProtocol,
-    ForwardedToOffscreenProtocol,
-    ForwardedToPopupProtocol,
-    getSendMessage,
-    processIncomingMessages,
-} from "../protocol";
+import { AnyToWorkerProtocol, processIncomingMessages } from "../protocol";
 import { ExecuteJsResponse, TabInfo } from "@sitnikov/browser-automation/extension-tab-client";
 
 /**
@@ -12,9 +6,8 @@ import { ExecuteJsResponse, TabInfo } from "@sitnikov/browser-automation/extensi
  *
  * Responsibilities:
  * - Create and maintain the offscreen document (which holds the broker WebSocket)
- * - Relay status updates from offscreen document to the popup
- * - Forward status queries from popup to offscreen document
  * - Handle tab listing and JS execution requests from offscreen document
+ * - Open the approval page
  */
 
 /**
@@ -44,9 +37,6 @@ chrome.runtime.onStartup.addListener(() => {
 
 // Also create it when the service worker first loads (handles reload/update)
 void ensureOffscreenDocument();
-
-const forwardToOffscreen = getSendMessage<ForwardedToOffscreenProtocol>();
-const forwardToPopup = getSendMessage<ForwardedToPopupProtocol>();
 
 processIncomingMessages<AnyToWorkerProtocol>({
     list_tabs: async () =>
@@ -99,10 +89,4 @@ processIncomingMessages<AnyToWorkerProtocol>({
         });
         await chrome.windows.update(tab.windowId, { focused: true });
     },
-
-    broker_status: (msg) => forwardToPopup(msg).catch(),
-
-    approval_decision: forwardToOffscreen,
-    get_approval_state: forwardToOffscreen,
-    get_broker_status: forwardToOffscreen,
 });
