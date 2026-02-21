@@ -109,14 +109,47 @@ export class BrowserMcpServer {
                         .string()
                         .describe("Extension connection ID obtained from initiate_session"),
                     sessionToken: z.string().describe("Session token obtained from initiate_session"),
+                    tabProps: z
+                        .array(
+                            z.enum<(keyof chrome.tabs.Tab)[]>([
+                                "id",
+                                "title",
+                                "url",
+                                "active",
+                                "status",
+                                "discarded",
+                                "windowId",
+                                "index",
+                                "groupId",
+                                "splitViewId",
+                                "openerTabId",
+                                "highlighted",
+                                "lastAccessed",
+                                "pinned",
+                                "audible",
+                                "frozen",
+                                "autoDiscardable",
+                                "mutedInfo",
+                                "pendingUrl",
+                                "favIconUrl",
+                                "incognito",
+                                "sessionId",
+                                "width",
+                                "height",
+                            ]),
+                        )
+                        .default(["id", "title", "url", "active", "status", "discarded", "windowId"])
+                        .describe(
+                            "Which tab properties to return in the response. Please specify as little fields as possible that are enough to achieve your goal, in order to save the traffic.",
+                        ),
                 }),
             },
-            async ({ extensionConnectionId, sessionToken }) => {
+            async ({ extensionConnectionId, sessionToken, tabProps }) => {
                 const tabs = await this.client.listTabs(sessionToken, extensionConnectionId);
 
                 this.logger?.log(`Found ${tabs.length} browser tabs`);
 
-                const truncationLimit = 50;
+                const truncationLimit = 80;
 
                 return {
                     content: [
@@ -125,12 +158,15 @@ export class BrowserMcpServer {
                             text: JSON.stringify(
                                 tabs.map((tab) =>
                                     Object.fromEntries(
-                                        Object.entries(tab).map(([key, value]) => [
-                                            key,
-                                            typeof value === "string" && value.length > truncationLimit
-                                                ? `${value.substring(0, truncationLimit)}… (truncated)`
-                                                : value,
-                                        ]),
+                                        Object.entries(tab)
+                                            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                                            .filter(([key]) => tabProps.includes(key as keyof chrome.tabs.Tab))
+                                            .map(([key, value]) => [
+                                                key,
+                                                typeof value === "string" && value.length > truncationLimit
+                                                    ? `${value.substring(0, truncationLimit)}… (truncated)`
+                                                    : value,
+                                            ]),
                                     ),
                                 ),
                                 null,
