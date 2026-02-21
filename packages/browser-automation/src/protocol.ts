@@ -19,6 +19,7 @@ export type ExtensionAutomationProtocol = {
     approve_session: {
         request: {
             sessionCode: string;
+            hostnameMasks?: string[];
         };
         response: ApproveSessionResponse;
     };

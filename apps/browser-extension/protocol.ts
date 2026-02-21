@@ -47,7 +47,10 @@ export type ApprovalToOffscreenProtocol = {
         };
     };
     get_approval_state: {
-        response: { status: "idle" } | { status: "pending"; sessionCode: string } | { status: "blocked" };
+        response:
+            | { status: "idle" }
+            | { status: "pending"; sessionCode: string; hostnameMasks?: string[] }
+            | { status: "blocked" };
     };
 };
 

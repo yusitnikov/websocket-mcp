@@ -50,7 +50,8 @@ processIncomingMessages<AnyToWorkerProtocol>({
                 // This function is serialized and re-evaluated in the page's MAIN world.
                 // Awaiting handles both sync and async (Promise-returning) code.
                 try {
-                    const result = await eval(codeToRun);
+                    // noinspection CommaExpressionJS
+                    const result = await (0, eval)(codeToRun);
                     const serialized: string =
                         result === undefined
                             ? "undefined"

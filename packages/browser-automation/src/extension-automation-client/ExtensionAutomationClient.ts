@@ -25,11 +25,14 @@ export class ExtensionAutomationClient {
         private readonly logger?: BrokerClientLogger,
     ) {}
 
-    async initiateSession(sessionCode: string): Promise<InitiateSessionSuccess | InitiateSessionRejected> {
+    async initiateSession(
+        sessionCode: string,
+        hostnameMasks?: string[],
+    ): Promise<InitiateSessionSuccess | InitiateSessionRejected> {
         return await this.withBrowserExtensionChannel(async (channel) => {
             const response = await this.sendToBrowserExtension(
                 channel,
-                { type: "approve_session", sessionCode },
+                { type: "approve_session", sessionCode, hostnameMasks },
                 120000,
             );
 

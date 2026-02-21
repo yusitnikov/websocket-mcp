@@ -38,14 +38,14 @@ export class ExtensionTabClient {
      */
     onDisconnected?: () => void;
 
-    private readonly approvedSessionTokens = new Set<string>();
+    private readonly approvedSessions: Record<string, { hostnameMasks?: string[] }> = {};
 
     constructor(
         brokerUrl: string,
         private readonly callbacks: {
             listTabs: () => Promise<chrome.tabs.Tab[]>;
             executeInTab: (tabId: number, code: string) => Promise<ExecuteJsResponse>;
-            approveSession: (sessionCode: string) => Promise<ApproveSessionResponse>;
+            approveSession: (sessionCode: string, hostnameMasks?: string[]) => Promise<ApproveSessionResponse>;
         },
     ) {
         this.broker = new BrokerClient(brokerUrl, "browser-extension", console);
@@ -89,10 +89,12 @@ export class ExtensionTabClient {
         this.activeChannels.clear();
     }
 
-    private validateSessionToken(sessionToken: string): void {
-        if (!this.approvedSessionTokens.has(sessionToken)) {
+    private validateSessionToken(sessionToken: string) {
+        const session = this.approvedSessions[sessionToken];
+        if (!session) {
             throw new Error("Invalid or expired session token");
         }
+        return session;
     }
 
     private handleIncomingChannel(channel: Channel): void {
@@ -110,24 +112,64 @@ export class ExtensionTabClient {
         };
     }
 
+    private async getAllowedTabs(sessionToken: string) {
+        const { hostnameMasks } = this.validateSessionToken(sessionToken);
+
+        let tabs = await this.callbacks.listTabs();
+
+        if (hostnameMasks?.length) {
+            tabs = tabs.filter(({ url }) => {
+                if (!url) {
+                    return false;
+                }
+
+                let hostname: string;
+                try {
+                    const parsed = new URL(url);
+                    hostname = parsed.hostname;
+                } catch {
+                    return false;
+                }
+
+                return hostnameMasks.some((mask) => {
+                    if (!mask.startsWith("*.")) {
+                        return hostname === mask;
+                    }
+
+                    const domain = mask.substring(2);
+                    return hostname === domain || hostname.endsWith(`.${domain}`);
+                });
+            });
+        }
+
+        return tabs;
+    }
+
     private async handleCommand(command: ExtensionRequest, channel: Channel): Promise<void> {
         console.log("Received command:", command);
 
         let response: ExtensionResponse;
         try {
             response = await processRequestByProtocolImplementationMap<ExtensionAutomationProtocol>(command, {
-                list_tabs: async ({ sessionToken }) => {
-                    this.validateSessionToken(sessionToken);
-                    return await this.callbacks.listTabs();
+                list_tabs: ({ sessionToken }) => this.getAllowedTabs(sessionToken),
+                execute_js: async ({ sessionToken, tabId, code }) => {
+                    const tabs = await this.getAllowedTabs(sessionToken);
+                    const tab = tabs.find(({ id }) => id === tabId);
+
+                    if (!tab) {
+                        throw new Error(`Tab ${tabId} not found - it was probably closed. Try listing the tabs again.`);
+                    }
+
+                    if (tab.discarded || tab.status === "unloaded") {
+                        throw new Error("The tab was unloaded due to inactivity - cannot execute code there");
+                    }
+
+                    return await this.callbacks.executeInTab(tabId, code);
                 },
-                execute_js: ({ sessionToken, tabId, code }) => {
-                    this.validateSessionToken(sessionToken);
-                    return this.callbacks.executeInTab(tabId, code);
-                },
-                approve_session: ({ sessionCode }) =>
-                    this.callbacks.approveSession(sessionCode).then((response) => {
+                approve_session: ({ sessionCode, hostnameMasks }) =>
+                    this.callbacks.approveSession(sessionCode, hostnameMasks).then((response) => {
                         if (response.success) {
-                            this.approvedSessionTokens.add(response.sessionToken);
+                            this.approvedSessions[response.sessionToken] = { hostnameMasks };
                         }
                         return response;
                     }),

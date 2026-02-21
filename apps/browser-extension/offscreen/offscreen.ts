@@ -19,13 +19,14 @@ type ApprovalState =
     | {
           status: "pending";
           sessionCode: string;
+          hostnameMasks?: string[];
           resolve: (result: ApproveSessionResponse) => void;
       }
     | { status: "blocked" }; // TODO: add mechanism to unblock (e.g. via popup action or timeout)
 
 let approvalState: ApprovalState = { status: "idle" };
 
-async function handleApproveSession(sessionCode: string): Promise<ApproveSessionResponse> {
+async function handleApproveSession(sessionCode: string, hostnameMasks?: string[]): Promise<ApproveSessionResponse> {
     if (approvalState.status === "blocked") {
         return { success: false };
     }
@@ -40,7 +41,7 @@ async function handleApproveSession(sessionCode: string): Promise<ApproveSession
 
     // status === "idle" — start a new approval flow
     return new Promise<ApproveSessionResponse>((resolve) => {
-        approvalState = { status: "pending", sessionCode, resolve };
+        approvalState = { status: "pending", sessionCode, hostnameMasks, resolve };
 
         // Ask service worker to open the approval tab and focus the window
         sendMessageToWorker({ type: "open_approval_tab" }).catch((error: unknown) => {
@@ -88,7 +89,7 @@ processIncomingMessages<AnyToOffscreenProtocol>({
 
     get_approval_state: () =>
         approvalState.status === "pending"
-            ? { status: "pending", sessionCode: approvalState.sessionCode }
+            ? { status: "pending", sessionCode: approvalState.sessionCode, hostnameMasks: approvalState.hostnameMasks }
             : approvalState.status === "blocked"
               ? { status: "blocked" }
               : { status: "idle" },

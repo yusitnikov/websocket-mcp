@@ -65,12 +65,24 @@ export class BrowserMcpServer {
                         .describe(
                             "A short, readable code shown to the user in the approval dialog to confirm the session is legitimate",
                         ),
+                    hostnames: z
+                        .array(
+                            z.string().describe(`
+                                Either exact hostname (e.g. "google.com") or a hostname mask that starts with "*." (e.g. "*.github.com") to match subdomains as well.
+                                Only one "*" character is allowed in the mask - in the start of the mask, followed with a dot (e.g. "mail.*.com" and "*claude.ai" are NOT allowed).
+                                Subdomain mask will match the base domain as well, e.g. "*.google.com" will match both "translate.google.com" and "google.com" itself.
+                            `),
+                        )
+                        .optional()
+                        .describe(
+                            "Request to access tabs with specific hostnames. Skip to request access to all tabs.",
+                        ),
                 }),
             },
-            async ({ sessionCode }) => {
+            async ({ sessionCode, hostnames }) => {
                 this.logger?.log(`Initiating session with code: ${sessionCode}`);
 
-                const result = await this.client.initiateSession(sessionCode);
+                const result = await this.client.initiateSession(sessionCode, hostnames);
 
                 if (result.approved) {
                     this.logger?.log("Session approved");
