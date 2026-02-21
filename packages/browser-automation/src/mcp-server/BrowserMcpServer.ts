@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ExtensionAutomationClient } from "../extension-automation-client/ExtensionAutomationClient";
 import { Logger } from "./Logger";
 import { z } from "zod/v4";
+import sift from "sift";
 
 /**
  * MCP server for browser automation via the Chrome extension.
@@ -140,14 +141,32 @@ export class BrowserMcpServer {
                         )
                         .default(["id", "title", "url", "active", "status", "discarded", "windowId"])
                         .describe(
-                            "Which tab properties to return in the response. Please specify as little fields as possible that are enough to achieve your goal, in order to save the traffic.",
+                            "Which tab properties to return in the response. Please specify as few fields as possible that are enough to achieve your goal, in order to save the traffic.",
                         ),
+                    tabFilter: z.record(z.string(), z.unknown()).optional().describe(`
+                        Filter tabs by criteria (all tabs are returned by default).
+                        It's highly recommended to pass a filter here to save the response traffic.
+
+                        The filter is a sift-compatible MongoDB filter object, e.g. {
+                            active: true,
+                            url: { $regex: "://google.com/" },
+                            title: { $regex: "browser automation", $options: "i" }
+                        }.
+
+                        You can filter by any tab property that is supported by tabProps.
+                    `),
                 }),
             },
-            async ({ extensionConnectionId, sessionToken, tabProps }) => {
-                const tabs = await this.client.listTabs(sessionToken, extensionConnectionId);
+            async ({ extensionConnectionId, sessionToken, tabProps, tabFilter }) => {
+                const allTabs = await this.client.listTabs(sessionToken, extensionConnectionId);
 
-                this.logger?.log(`Found ${tabs.length} browser tabs`);
+                let tabs = allTabs;
+                if (tabFilter) {
+                    const filter = sift(tabFilter);
+                    tabs = allTabs.filter(filter);
+                }
+
+                this.logger?.log(`Found ${tabs.length} matching browser tabs`);
 
                 const truncationLimit = 80;
 
