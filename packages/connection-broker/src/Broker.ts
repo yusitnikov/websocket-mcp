@@ -8,12 +8,7 @@ import {
     BrokerResponse,
     BrokerToClientProtocol,
 } from "./protocol";
-import {
-    processRequestByProtocolImplementationMap,
-    ProtocolRequest,
-    ProtocolSyncImplementationMap,
-    ProtocolUnknownRequest,
-} from "@sitnikov/protocol";
+import { processRequestByProtocolImplementationMap, ProtocolRequest, ProtocolUnknownRequest } from "@sitnikov/protocol";
 
 interface Connection {
     role: string;
@@ -111,22 +106,18 @@ export class ConnectionBroker {
     }
 
     private handleMessage(ws: WebSocket, msg: ClientRequest & BaseMessage): void {
-        const implementationMap: ProtocolSyncImplementationMap<ClientToBrokerProtocol> = {
-            register: ({ role }) => ({
-                connectionId: this.handleRegister(ws, role),
-            }),
-            list_by_role: ({ role }) => ({ ids: this.handleListByRole(role) }),
-            open: ({ targetId }) => ({ channelId: this.handleOpenChannel(ws, targetId) }),
-            message: ({ channelId, payload }) => this.handleChannelMessage(ws, channelId, payload),
-            close: ({ channelId }) => this.handleCloseChannel(ws, channelId),
-        };
-
-        // TODO: proper type
-        let response: BrokerResponse | undefined;
+        let response: BrokerResponse;
 
         try {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            response = processRequestByProtocolImplementationMap(msg, implementationMap) as BrokerResponse;
+            response = processRequestByProtocolImplementationMap<ClientToBrokerProtocol>(msg, {
+                register: ({ role }) => ({
+                    connectionId: this.handleRegister(ws, role),
+                }),
+                list_by_role: ({ role }) => ({ ids: this.handleListByRole(role) }),
+                open: ({ targetId }) => ({ channelId: this.handleOpenChannel(ws, targetId) }),
+                message: ({ channelId, payload }) => this.handleChannelMessage(ws, channelId, payload),
+                close: ({ channelId }) => this.handleCloseChannel(ws, channelId),
+            });
         } catch (error: unknown) {
             if (error instanceof ProtocolUnknownRequest) {
                 console.error(error);

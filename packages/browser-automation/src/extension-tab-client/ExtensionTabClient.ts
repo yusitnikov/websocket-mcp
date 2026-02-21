@@ -7,7 +7,7 @@ import type {
     ExtensionAutomationProtocol,
     ExtensionResponse,
 } from "./protocol";
-import { processRequestByProtocolImplementationMap, ProtocolAsyncImplementationMap } from "@sitnikov/protocol";
+import { processRequestByProtocolImplementationMap } from "@sitnikov/protocol";
 
 /**
  * Extension tab client that connects to the connection broker.
@@ -114,27 +114,25 @@ export class ExtensionTabClient {
     private async handleCommand(command: ExtensionRequest, channel: Channel): Promise<void> {
         console.log("Received command:", command);
 
-        const implementationMap: ProtocolAsyncImplementationMap<ExtensionAutomationProtocol> = {
-            list_tabs: async ({ sessionToken }) => {
-                this.validateSessionToken(sessionToken);
-                return { tabs: await this.callbacks.listTabs() };
-            },
-            execute_js: ({ sessionToken, tabId, code }) => {
-                this.validateSessionToken(sessionToken);
-                return this.callbacks.executeInTab(tabId, code);
-            },
-            approve_session: ({ sessionCode }) =>
-                this.callbacks.approveSession(sessionCode).then((response) => {
-                    if (response.success) {
-                        this.approvedSessionTokens.add(response.sessionToken);
-                    }
-                    return response;
-                }),
-        };
-
         let response: ExtensionResponse;
         try {
-            response = await processRequestByProtocolImplementationMap(command, implementationMap);
+            response = await processRequestByProtocolImplementationMap<ExtensionAutomationProtocol>(command, {
+                list_tabs: async ({ sessionToken }) => {
+                    this.validateSessionToken(sessionToken);
+                    return { tabs: await this.callbacks.listTabs() };
+                },
+                execute_js: ({ sessionToken, tabId, code }) => {
+                    this.validateSessionToken(sessionToken);
+                    return this.callbacks.executeInTab(tabId, code);
+                },
+                approve_session: ({ sessionCode }) =>
+                    this.callbacks.approveSession(sessionCode).then((response) => {
+                        if (response.success) {
+                            this.approvedSessionTokens.add(response.sessionToken);
+                        }
+                        return response;
+                    }),
+            });
         } catch (error: unknown) {
             response = {
                 type: "error",

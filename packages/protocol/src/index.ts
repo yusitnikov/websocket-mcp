@@ -9,14 +9,18 @@ export type ProtocolRequest<ContractT extends ProtocolContract, TypeT extends ke
     type: TypeT;
 } & ContractT[TypeT]["request"];
 
-export type AnyProtocolRequest<ContractT extends ProtocolContract> = ProtocolRequest<ContractT, keyof ContractT>;
+export type AnyProtocolRequest<ContractT extends ProtocolContract> = {
+    [TypeT in keyof ContractT]: ProtocolRequest<ContractT, TypeT>;
+}[keyof ContractT];
 
 export type ProtocolResponse<
     ContractT extends ProtocolContract,
     TypeT extends keyof ContractT,
-> = ContractT[TypeT]["response"] extends object ? ContractT[TypeT]["response"] : void;
+> = ContractT[TypeT] extends { response: any } ? ContractT[TypeT]["response"] : void;
 
-export type AnyProtocolResponse<ContractT extends ProtocolContract> = ProtocolResponse<ContractT, keyof ContractT>;
+export type AnyProtocolResponse<ContractT extends ProtocolContract> = {
+    [TypeT in keyof ContractT]: ProtocolResponse<ContractT, TypeT>;
+}[keyof ContractT];
 
 export type ProtocolRequestSyncImplementation<ContractT extends ProtocolContract, TypeT extends keyof ContractT> = (
     request: ProtocolRequest<ContractT, TypeT>,
