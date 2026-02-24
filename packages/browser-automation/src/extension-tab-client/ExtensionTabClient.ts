@@ -8,6 +8,11 @@ import type {
 } from "../protocol";
 import { processRequestByProtocolImplementationMap } from "@sitnikov/protocol";
 
+export type ApprovalState =
+    | { status: "idle" }
+    | { status: "pending"; sessionCode: string; hostnameMasks?: string[] }
+    | { status: "blocked" };
+
 /**
  * Extension tab client that connects to the connection broker.
  *
@@ -39,13 +44,15 @@ export class ExtensionTabClient {
     onDisconnected?: () => void;
 
     private readonly approvedSessions: Record<string, { hostnameMasks?: string[] }> = {};
+    private approvalState: ApprovalState = { status: "idle" };
+    private approvalResolve?: (success: boolean) => void;
 
     constructor(
         brokerUrl: string,
         private readonly callbacks: {
             listTabs: () => Promise<chrome.tabs.Tab[]>;
             executeInTab: (tabId: number, code: string) => Promise<ExecuteJsResponse>;
-            approveSession: (sessionCode: string, hostnameMasks?: string[]) => Promise<ApproveSessionResponse>;
+            openApprovalTab: () => Promise<void>;
         },
     ) {
         this.broker = new BrokerClient(brokerUrl, "browser-extension", console);
@@ -87,6 +94,48 @@ export class ExtensionTabClient {
     disconnect(): void {
         this.broker.disconnect();
         this.activeChannels.clear();
+    }
+
+    getApprovalState(): ApprovalState {
+        return this.approvalState;
+    }
+
+    resolveApproval(approved: boolean): void {
+        if (this.approvalState.status !== "pending") {
+            return;
+        }
+        const resolve = this.approvalResolve;
+        this.approvalState = { status: "idle" };
+        this.approvalResolve = undefined;
+        resolve?.(approved);
+    }
+
+    private async handleApproveSession(sessionCode: string, hostnameMasks?: string[]): Promise<boolean> {
+        if (this.approvalState.status === "blocked") {
+            return false;
+        }
+
+        if (this.approvalState.status === "pending") {
+            // Two simultaneous approval requests — assume attack; block all future requests and reject both
+            const previousResolve = this.approvalResolve;
+            this.approvalState = { status: "blocked" };
+            this.approvalResolve = undefined;
+            previousResolve?.(false);
+            return false;
+        }
+
+        // status === "idle" — start a new approval flow
+        return new Promise<boolean>((resolve) => {
+            this.approvalState = { status: "pending", sessionCode, hostnameMasks };
+            this.approvalResolve = resolve;
+
+            this.callbacks.openApprovalTab().catch((error: unknown) => {
+                console.error("[ExtensionTabClient] Error opening approval tab:", error);
+                this.approvalState = { status: "idle" };
+                this.approvalResolve = undefined;
+                resolve(false);
+            });
+        });
     }
 
     private validateSessionToken(sessionToken: string) {
@@ -167,11 +216,13 @@ export class ExtensionTabClient {
                     return await this.callbacks.executeInTab(tabId, code);
                 },
                 approve_session: ({ sessionCode, hostnameMasks }) =>
-                    this.callbacks.approveSession(sessionCode, hostnameMasks).then((response) => {
-                        if (response.success) {
-                            this.approvedSessions[response.sessionToken] = { hostnameMasks };
+                    this.handleApproveSession(sessionCode, hostnameMasks).then((success): ApproveSessionResponse => {
+                        if (success) {
+                            const sessionToken = crypto.randomUUID();
+                            this.approvedSessions[sessionToken] = { hostnameMasks };
+                            return { success: true, sessionToken };
                         }
-                        return response;
+                        return { success: false };
                     }),
             });
         } catch (error: unknown) {
