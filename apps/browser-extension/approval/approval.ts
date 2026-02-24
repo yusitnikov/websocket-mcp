@@ -7,26 +7,18 @@ async function sendDecision(approved: boolean): Promise<void> {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    /* eslint-disable @typescript-eslint/no-non-null-assertion, @typescript-eslint/consistent-type-assertions */
     const codeEl = document.getElementById("session-code")!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const subtitleEl = document.getElementById("subtitle")!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const statusEl = document.getElementById("status")!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const actionsEl = document.getElementById("actions")!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const scopeSectionEl = document.getElementById("scope-section")!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const scopeAllEl = document.getElementById("scope-all")!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const hostnameListEl = document.getElementById("hostname-list")!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const warningIconEl = document.getElementById("warning-icon")!;
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const btnApprove = document.getElementById("btn-approve") as HTMLButtonElement;
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const btnReject = document.getElementById("btn-reject") as HTMLButtonElement;
+    /* eslint-enable @typescript-eslint/no-non-null-assertion, @typescript-eslint/consistent-type-assertions */
 
     btnApprove.addEventListener("click", () => {
         btnApprove.disabled = true;

@@ -1,6 +1,5 @@
 import { BrokerClient, Channel } from "@sitnikov/connection-broker/client";
 import type {
-    ExtensionRequest,
     ExecuteJsResponse,
     ApproveSessionResponse,
     ExtensionAutomationProtocol,
@@ -151,8 +150,7 @@ export class ExtensionTabClient {
         this.activeChannels.add(channel);
 
         channel.onMessage = (payload) => {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            void this.handleCommand(payload as ExtensionRequest, channel);
+            void this.handleCommand(payload, channel);
         };
 
         channel.onClosed = () => {
@@ -194,7 +192,7 @@ export class ExtensionTabClient {
         return tabs;
     }
 
-    private async handleCommand(command: ExtensionRequest, channel: Channel): Promise<void> {
+    private async handleCommand(command: unknown, channel: Channel): Promise<void> {
         console.log("Received command:", command);
 
         let response: ExtensionResponse;
