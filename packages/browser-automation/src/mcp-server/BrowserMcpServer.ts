@@ -5,6 +5,17 @@ import { Logger } from "./Logger";
 import { z } from "zod/v4";
 import sift from "sift";
 
+const hostnamesField = z
+    .array(
+        z.string().describe(`
+            Either exact hostname (e.g. "google.com") or a hostname mask that starts with "*." (e.g. "*.github.com") to match subdomains as well.
+            Only one "*" character is allowed in the mask - in the start of the mask, followed with a dot (e.g. "mail.*.com" and "*claude.ai" are NOT allowed).
+            Subdomain mask will match the base domain as well, e.g. "*.google.com" will match both "translate.google.com" and "google.com" itself.
+        `),
+    )
+    .optional()
+    .describe("Request to access tabs with specific hostnames. Skip to request access to all tabs.");
+
 /**
  * MCP server for browser automation via the Chrome extension.
  *
@@ -81,20 +92,7 @@ export class BrowserMcpServer {
                         .describe(
                             "A short, readable code shown to the user in the approval dialog to confirm the session is legitimate",
                         ),
-                    hostnames: this.hostnames?.length
-                        ? z.never()
-                        : z
-                              .array(
-                                  z.string().describe(`
-                                      Either exact hostname (e.g. "google.com") or a hostname mask that starts with "*." (e.g. "*.github.com") to match subdomains as well.
-                                      Only one "*" character is allowed in the mask - in the start of the mask, followed with a dot (e.g. "mail.*.com" and "*claude.ai" are NOT allowed).
-                                      Subdomain mask will match the base domain as well, e.g. "*.google.com" will match both "translate.google.com" and "google.com" itself.
-                                  `),
-                              )
-                              .optional()
-                              .describe(
-                                  "Request to access tabs with specific hostnames. Skip to request access to all tabs.",
-                              ),
+                    ...(this.hostnames?.length ? {} : { hostnames: hostnamesField }),
                 }),
             },
             async ({ sessionCode, hostnames }) => {
@@ -102,7 +100,7 @@ export class BrowserMcpServer {
 
                 const result = await this.client.initiateSession(
                     sessionCode,
-                    this.hostnames?.length ? this.hostnames : hostnames,
+                    this.hostnames?.length ? this.hostnames : hostnamesField.parse(hostnames),
                 );
 
                 if (result.approved) {

@@ -1,6 +1,6 @@
 {
     "name": "@sitnikov/browser-automation",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Browser automation via MCP using the generic connection broker",
     "type": "module",
     "main": "./index.js",
