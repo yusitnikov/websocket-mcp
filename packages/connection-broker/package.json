@@ -1,6 +1,6 @@
 {
     "name": "@sitnikov/connection-broker",
-    "version": "0.1.1",
+    "version": "1.0.0",
     "description": "Generic connection broker for routing messages between clients",
     "type": "module",
     "main": "./index.js",
