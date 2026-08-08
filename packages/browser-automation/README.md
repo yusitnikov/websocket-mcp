@@ -48,6 +48,7 @@ Initiates a browser automation session. Shows an approval dialog in the browser 
 **Output (rejected):** `{ "approved": false }`
 
 **Behavior:**
+
 - Opens an approval tab in Chrome and focuses the window
 - The user sees the session code and can Approve or Reject
 - Closing the approval tab is treated as rejection
@@ -138,6 +139,52 @@ Chrome Extension
 2. When Claude calls `initiate_session`, the MCP server discovers the one connected extension via `list_by_role`, opens a channel, and sends `{type: "approve_session", sessionCode}`. The extension opens an approval tab; the user approves or rejects. On approval, the extension generates a UUID session token, stores it in `ExtensionTabClient`, and returns it along with the extension's broker connection ID.
 3. When Claude calls `list_tabs`, the MCP server opens a channel directly to the stored `extensionConnectionId` and sends `{type: "list_tabs", sessionToken}`. `ExtensionTabClient` validates the token, then returns the tab list from `chrome.tabs.query`.
 4. When Claude calls `execute_js`, the MCP server sends `{type: "execute_js", sessionToken, tabId, code}` to the same extension. `ExtensionTabClient` validates the token, then the service worker calls `chrome.scripting.executeScript` in the target tab's main world. The result (or structured error) is returned through the broker.
+
+## Building a Domain-Specific Server
+
+`BrowserMcpServer` is designed to be subclassed rather than used only as-is, so you can build a narrower, intent-shaped MCP server for one site (e.g. Gmail, GitHub) on top of the same extension/broker plumbing — without touching `execute_js`/`list_tabs` yourself.
+
+Constructor options, in addition to `logFilePath`, `brokerUrl`, and `transport`:
+
+- **`skipExecuteJs`** (`boolean`, default `false`) — when `true`, the `execute_js` tool is not registered. Use this if your subclass only exposes higher-level, intent-shaped tools, and you don't want the LLM able to run arbitrary JS.
+- **`hostnames`** (`string[]`, optional) — hardcodes the hostnames `initiate_session` requests access to. When set, the LLM is not offered a `hostnames` parameter on that tool at all (it has no real choice, so it isn't given the illusion of one); the approval dialog and session are scoped to exactly what you pass.
+
+Override `setupHandlers`, calling `super.setupHandlers()` first to keep `initiate_session`/`list_tabs` (and `execute_js`, unless skipped), then register your own tools that call `this.client.executeJs(...)` (the underlying `ExtensionAutomationClient`) internally. Reuse `sessionTokenField`, `extensionConnectionIdField`, and `tabIdField` for the standard session/tab parameters instead of redeclaring `session_token`/`extension_connection_id`/`tabId` on every new tool.
+
+New tools should take a `tabId` input, like `execute_js` does — not call `this.client.listTabs(...)` internally. Tab discovery/selection stays the LLM's job via the `list_tabs` tool.
+
+```typescript
+class GmailMcpServer extends BrowserMcpServer {
+    constructor(logFilePath: string | undefined, brokerUrl: string) {
+        super(logFilePath, brokerUrl, "stdio", /* skipExecuteJs */ true, ["mail.google.com"]);
+    }
+
+    protected setupHandlers(): void {
+        super.setupHandlers(); // keeps initiate_session (scoped to mail.google.com) + list_tabs
+
+        this.server.registerTool(
+            "send_email",
+            {
+                description: "Send an email via Gmail",
+                inputSchema: z.object({
+                    sessionToken: BrowserMcpServer.sessionTokenField,
+                    extensionConnectionId: BrowserMcpServer.extensionConnectionIdField,
+                    tabId: BrowserMcpServer.tabIdField,
+                    to: z.string(),
+                    subject: z.string(),
+                    body: z.string(),
+                }),
+            },
+            async ({ sessionToken, extensionConnectionId, tabId, to, subject, body }) => {
+                // this.client.executeJs(sessionToken, extensionConnectionId, tabId, code) with the DOM
+                // logic to compose and send - the LLM already picked tabId via list_tabs
+            },
+        );
+    }
+}
+```
+
+Like every other tool on this server, `send_email` still needs a session: the LLM must call `initiate_session` first (once per session) and pass the resulting `sessionToken`/`extensionConnectionId` into `send_email`, exactly as it does today for `list_tabs`/`execute_js`. Hardcoding `hostnames` only fixes _which_ hostnames get requested — it does not remove the need for a session.
 
 ## Security Considerations
 

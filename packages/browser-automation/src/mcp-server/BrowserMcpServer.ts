@@ -13,19 +13,35 @@ import sift from "sift";
  * - execute_js: Execute JavaScript in a browser tab
  */
 export class BrowserMcpServer {
-    private readonly server: McpServer;
-    private readonly logger: Logger | undefined;
-    private readonly client: ExtensionAutomationClient;
+    /** Reusable Zod field for `session_token`, shared by every tool that needs an active session. */
+    protected static readonly sessionTokenField = z.string().describe("Session token obtained from initiate_session");
+
+    /** Reusable Zod field for `extension_connection_id`, shared by every tool that needs an active session. */
+    protected static readonly extensionConnectionIdField = z
+        .string()
+        .describe("Extension connection ID obtained from initiate_session");
+
+    /** Reusable Zod field for a Chrome tab ID, shared by every tool that targets a specific tab. */
+    protected static readonly tabIdField = z.number().describe("ID of the browser tab to target (from list_tabs)");
+
+    protected readonly server: McpServer;
+    protected readonly logger: Logger | undefined;
+    protected readonly client: ExtensionAutomationClient;
 
     /**
      * @param logFilePath - Path to the log file (omit to disable logging)
      * @param brokerUrl - WebSocket URL of the connection broker
      * @param transport - MCP transport (default: stdio)
+     * @param skipExecuteJs - Skip registering the execute_js tool (default: false)
+     * @param hostnames - Fixed hostnames to request on initiate_session. When set, the tool no longer
+     *   exposes a `hostnames` parameter to the LLM, since it isn't free to choose one anyway.
      */
     constructor(
         logFilePath: string | undefined,
         brokerUrl: string,
         private readonly transport: "stdio" | "http" = "stdio",
+        private readonly skipExecuteJs = false,
+        private readonly hostnames?: string[],
     ) {
         this.logger = logFilePath !== undefined ? new Logger(logFilePath) : undefined;
         this.client = new ExtensionAutomationClient(brokerUrl, this.logger);
@@ -53,7 +69,7 @@ export class BrowserMcpServer {
         }
     }
 
-    private setupHandlers(): void {
+    protected setupHandlers(): void {
         this.server.registerTool(
             "initiate_session",
             {
@@ -65,24 +81,29 @@ export class BrowserMcpServer {
                         .describe(
                             "A short, readable code shown to the user in the approval dialog to confirm the session is legitimate",
                         ),
-                    hostnames: z
-                        .array(
-                            z.string().describe(`
-                                Either exact hostname (e.g. "google.com") or a hostname mask that starts with "*." (e.g. "*.github.com") to match subdomains as well.
-                                Only one "*" character is allowed in the mask - in the start of the mask, followed with a dot (e.g. "mail.*.com" and "*claude.ai" are NOT allowed).
-                                Subdomain mask will match the base domain as well, e.g. "*.google.com" will match both "translate.google.com" and "google.com" itself.
-                            `),
-                        )
-                        .optional()
-                        .describe(
-                            "Request to access tabs with specific hostnames. Skip to request access to all tabs.",
-                        ),
+                    hostnames: this.hostnames?.length
+                        ? z.never()
+                        : z
+                              .array(
+                                  z.string().describe(`
+                                      Either exact hostname (e.g. "google.com") or a hostname mask that starts with "*." (e.g. "*.github.com") to match subdomains as well.
+                                      Only one "*" character is allowed in the mask - in the start of the mask, followed with a dot (e.g. "mail.*.com" and "*claude.ai" are NOT allowed).
+                                      Subdomain mask will match the base domain as well, e.g. "*.google.com" will match both "translate.google.com" and "google.com" itself.
+                                  `),
+                              )
+                              .optional()
+                              .describe(
+                                  "Request to access tabs with specific hostnames. Skip to request access to all tabs.",
+                              ),
                 }),
             },
             async ({ sessionCode, hostnames }) => {
                 this.logger?.log(`Initiating session with code: ${sessionCode}`);
 
-                const result = await this.client.initiateSession(sessionCode, hostnames);
+                const result = await this.client.initiateSession(
+                    sessionCode,
+                    this.hostnames?.length ? this.hostnames : hostnames,
+                );
 
                 if (result.approved) {
                     this.logger?.log("Session approved");
@@ -118,10 +139,8 @@ export class BrowserMcpServer {
             {
                 description: "List all open browser tabs",
                 inputSchema: z.object({
-                    extensionConnectionId: z
-                        .string()
-                        .describe("Extension connection ID obtained from initiate_session"),
-                    sessionToken: z.string().describe("Session token obtained from initiate_session"),
+                    extensionConnectionId: BrowserMcpServer.extensionConnectionIdField,
+                    sessionToken: BrowserMcpServer.sessionTokenField,
                     tabProps: z
                         .array(
                             z.enum<(keyof chrome.tabs.Tab)[]>([
@@ -209,16 +228,18 @@ export class BrowserMcpServer {
             },
         );
 
+        if (this.skipExecuteJs) {
+            return;
+        }
+
         this.server.registerTool(
             "execute_js",
             {
                 description: "Execute JavaScript code in a browser tab and return the result",
                 inputSchema: z.object({
-                    extensionConnectionId: z
-                        .string()
-                        .describe("Extension connection ID obtained from initiate_session"),
-                    sessionToken: z.string().describe("Session token obtained from initiate_session"),
-                    tabId: z.number().describe("ID of the browser tab to execute code in (from list_tabs)"),
+                    extensionConnectionId: BrowserMcpServer.extensionConnectionIdField,
+                    sessionToken: BrowserMcpServer.sessionTokenField,
+                    tabId: BrowserMcpServer.tabIdField,
                     code: z.string().describe("JavaScript code to execute, compatible with `eval`"),
                 }),
             },

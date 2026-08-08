@@ -389,6 +389,10 @@ Then use tools (in order):
 
 ## Future Extensions
 
+### Domain-Specific MCP Servers
+
+`BrowserMcpServer` is built to be subclassed: `setupHandlers` is `protected`, and the constructor accepts `skipExecuteJs` (drop raw JS execution) and `hostnames` (hardcode the hostname scope requested by `initiate_session`, removing that parameter from the LLM-facing schema entirely). A subclass calls `super.setupHandlers()` to keep the tools it still wants, then registers additional, intent-shaped tools (e.g. `send_email` for Gmail) that call the inherited `this.client` (`ExtensionAutomationClient`) internally. See `packages/browser-automation/README.md` → "Building a Domain-Specific Server" for a worked example.
+
 ### Additional MCP Tools
 
 - `click_element` - Click DOM elements
