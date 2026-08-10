@@ -12,6 +12,9 @@ export interface InitiateSessionRejected {
     approved: false;
 }
 
+/** How long to wait for the extension's response when the caller doesn't say. */
+const defaultTimeout = 30000;
+
 /**
  * Client for browser extension automation via the connection broker.
  *
@@ -50,7 +53,7 @@ export class ExtensionAutomationClient {
 
     async listTabs(sessionToken: string, extensionConnectionId: string): Promise<chrome.tabs.Tab[]> {
         return await this.withSpecificExtensionChannel(extensionConnectionId, (channel) =>
-            this.sendToBrowserExtension(channel, { type: "list_tabs", sessionToken }, 30000),
+            this.sendToBrowserExtension(channel, { type: "list_tabs", sessionToken }, defaultTimeout),
         );
     }
 
@@ -59,9 +62,14 @@ export class ExtensionAutomationClient {
         extensionConnectionId: string,
         tabId: number,
         code: string,
+        timeout = defaultTimeout,
     ): Promise<ExecuteJsResponse> {
         return await this.withSpecificExtensionChannel(extensionConnectionId, async (channel) => {
-            return await this.sendToBrowserExtension(channel, { type: "execute_js", sessionToken, tabId, code }, 30000);
+            return await this.sendToBrowserExtension(
+                channel,
+                { type: "execute_js", sessionToken, tabId, code },
+                timeout,
+            );
         });
     }
 
