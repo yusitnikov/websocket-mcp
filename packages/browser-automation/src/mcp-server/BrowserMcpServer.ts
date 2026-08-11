@@ -16,6 +16,22 @@ const hostnamesField = z
     .optional()
     .describe("Request to access tabs with specific hostnames. Skip to request access to all tabs.");
 
+export interface BrowserMcpServerOptions {
+    /** Path to the log file (omit to disable logging) */
+    logFilePath: string | undefined;
+    /** WebSocket URL of the connection broker */
+    brokerUrl: string;
+    /** MCP transport (default: stdio) */
+    transport?: "stdio" | "http";
+    /** Skip registering the execute_js tool (default: false) */
+    skipExecuteJs?: boolean;
+    /**
+     * Fixed hostnames to request on initiate_session. When set, the tool no longer exposes a
+     * `hostnames` parameter to the LLM, since it isn't free to choose one anyway.
+     */
+    hostnames?: string[];
+}
+
 /**
  * MCP server for browser automation via the Chrome extension.
  *
@@ -39,21 +55,20 @@ export class BrowserMcpServer {
     protected readonly logger: Logger | undefined;
     protected readonly client: ExtensionAutomationClient;
 
-    /**
-     * @param logFilePath - Path to the log file (omit to disable logging)
-     * @param brokerUrl - WebSocket URL of the connection broker
-     * @param transport - MCP transport (default: stdio)
-     * @param skipExecuteJs - Skip registering the execute_js tool (default: false)
-     * @param hostnames - Fixed hostnames to request on initiate_session. When set, the tool no longer
-     *   exposes a `hostnames` parameter to the LLM, since it isn't free to choose one anyway.
-     */
-    constructor(
-        logFilePath: string | undefined,
-        brokerUrl: string,
-        private readonly transport: "stdio" | "http" = "stdio",
-        private readonly skipExecuteJs = false,
-        private readonly hostnames?: string[],
-    ) {
+    protected readonly transport: "stdio" | "http";
+    protected readonly skipExecuteJs: boolean;
+    protected readonly hostnames?: string[];
+
+    constructor({
+        logFilePath,
+        brokerUrl,
+        transport = "stdio",
+        skipExecuteJs = false,
+        hostnames,
+    }: BrowserMcpServerOptions) {
+        this.transport = transport;
+        this.skipExecuteJs = skipExecuteJs;
+        this.hostnames = hostnames;
         this.logger = logFilePath !== undefined ? new Logger(logFilePath) : undefined;
         this.client = new ExtensionAutomationClient(brokerUrl, this.logger);
         this.server = new McpServer(

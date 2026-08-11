@@ -14,7 +14,11 @@ program
     .option("--log <file>", "Path to log file (omit to disable logging)")
     .option("--stdio", "Use stdio transport (default)", true)
     .action(async (options) => {
-        const server = new BrowserMcpServer(options.log, options.broker, "stdio");
+        const server = new BrowserMcpServer({
+            logFilePath: options.log,
+            brokerUrl: options.broker,
+            transport: "stdio",
+        });
 
         try {
             await server.start();
