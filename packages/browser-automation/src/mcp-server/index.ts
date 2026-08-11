@@ -1,1 +1,1 @@
-export { BrowserMcpServer } from "./BrowserMcpServer";
+export * from "./BrowserMcpServer";

@@ -18,6 +18,10 @@ program
             logFilePath: options.log,
             brokerUrl: options.broker,
             transport: "stdio",
+            serverInfo: {
+                name: "browser-automation",
+                version: "1.0.0",
+            },
         });
 
         try {

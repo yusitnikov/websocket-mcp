@@ -1,4 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ServerOptions } from "@modelcontextprotocol/sdk/server/index.js";
+import type { Implementation } from "@modelcontextprotocol/sdk/types.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ExtensionAutomationClient } from "../extension-automation-client/ExtensionAutomationClient";
 import { Logger } from "./Logger";
@@ -30,6 +32,10 @@ export interface BrowserMcpServerOptions {
      * `hostnames` parameter to the LLM, since it isn't free to choose one anyway.
      */
     hostnames?: string[];
+    /** MCP server name/version metadata */
+    serverInfo: Implementation;
+    /** Additional MCP server options, e.g. protocol-level `capabilities` beyond the hardcoded `tools` capability */
+    serverOptions?: ServerOptions;
 }
 
 /**
@@ -65,23 +71,21 @@ export class BrowserMcpServer {
         transport = "stdio",
         skipExecuteJs = false,
         hostnames,
+        serverInfo,
+        serverOptions,
     }: BrowserMcpServerOptions) {
         this.transport = transport;
         this.skipExecuteJs = skipExecuteJs;
         this.hostnames = hostnames;
         this.logger = logFilePath !== undefined ? new Logger(logFilePath) : undefined;
         this.client = new ExtensionAutomationClient(brokerUrl, this.logger);
-        this.server = new McpServer(
-            {
-                name: "browser-automation",
-                version: "1.0.0",
+        this.server = new McpServer(serverInfo, {
+            ...serverOptions,
+            capabilities: {
+                ...serverOptions?.capabilities,
+                tools: {},
             },
-            {
-                capabilities: {
-                    tools: {},
-                },
-            },
-        );
+        });
 
         this.setupHandlers();
     }
