@@ -1,0 +1,37 @@
+name: Release browser extension
+
+on:
+    release:
+        types: [published]
+
+permissions:
+    contents: write # required to upload release assets
+
+jobs:
+    build-extension:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: 24
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npx nx run browser-extension:vite:build
+
+            # Zip contains a single top-level folder, so users can unzip and pick it in "Load unpacked"
+            - name: Package extension
+              run: |
+                  mkdir -p release
+                  cp -r dist/apps/browser-extension release/browser-automation-extension
+                  cd release
+                  zip -r browser-automation-extension.zip browser-automation-extension
+
+            - name: Upload release asset
+              run: gh release upload "$TAG" release/browser-automation-extension.zip --clobber
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  TAG: ${{ github.event.release.tag_name }}
